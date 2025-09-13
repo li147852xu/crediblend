@@ -7,10 +7,10 @@ from pathlib import Path
 from datetime import datetime
 from typing import Dict, Any
 
-from .core.io import read_oof_files, read_sub_files, align_submission_ids, save_outputs
+from .core.io import read_oof_files, read_sub_files, align_submission_ids, save_outputs, create_meta_json
 from .core.metrics import Scorer, compute_oof_metrics, create_methods_table
 from .core.blend import blend_predictions
-from .core.report import generate_report
+from .core.report import generate_report, export_to_pdf, create_blend_summary
 from .core.decorrelate import filter_redundant_models, get_cluster_summary
 from .core.stacking import stacking_blend
 from .core.weights import optimize_weights
@@ -40,9 +40,13 @@ from .core.stability import (compute_windowed_metrics, compute_stability_scores,
               help='Time column name for time-sliced analysis (e.g., date)')
 @click.option('--freq', default='M', type=click.Choice(['M', 'W', 'D']),
               help='Time frequency for windowing (M=month, W=week, D=day)')
-def main(oof_dir: str, sub_dir: str, out_dir: str, metric: str, 
+@click.option('--export', type=click.Choice(['pdf', 'none']), default='none',
+              help='Export format for report (pdf/none)')
+@click.option('--summary-json', help='Path to save blend summary JSON')
+def main(oof_dir: str, sub_dir: str, out_dir: str, metric: str,
          target_col: str, methods: str, decorrelate: str, stacking: str,
-         search: str, seed: int, time_col: str, freq: str) -> None:
+         search: str, seed: int, time_col: str, freq: str, export: str, 
+         summary_json: str) -> None:
     """CrediBlend: Blend machine learning predictions.
     
     This tool reads OOF (out-of-fold) and submission files, computes various
@@ -50,6 +54,14 @@ def main(oof_dir: str, sub_dir: str, out_dir: str, metric: str,
     """
     print("🎯 CrediBlend - Machine Learning Prediction Blending")
     print("=" * 50)
+    print(f"Using metric: {metric}")
+    
+    # Set random seeds for reproducibility
+    if seed is not None:
+        print(f"Setting random seed: {seed}")
+        np.random.seed(seed)
+        import random
+        random.seed(seed)
     
     # Parse methods
     method_list = [m.strip() for m in methods.split(',')]
@@ -85,7 +97,7 @@ def main(oof_dir: str, sub_dir: str, out_dir: str, metric: str,
         
         # Read OOF files
         print(f"\n📁 Reading OOF files from: {oof_dir}")
-        oof_files = read_oof_files(oof_dir)
+        oof_files = read_oof_files(oof_dir, time_col)
         
         # Read submission files
         print(f"\n📁 Reading submission files from: {sub_dir}")
@@ -225,6 +237,24 @@ def main(oof_dir: str, sub_dir: str, out_dir: str, metric: str,
         print(f"\n💾 Saving outputs to: {out_dir}")
         save_outputs(out_dir, best_submission, methods_df, report_html)
         
+        # Create meta.json
+        args_dict = {
+            'oof_dir': oof_dir,
+            'sub_dir': sub_dir,
+            'out_dir': out_dir,
+            'metric': metric,
+            'target_col': target_col,
+            'methods': methods,
+            'decorrelate': decorrelate,
+            'stacking': stacking,
+            'search': search,
+            'time_col': time_col,
+            'freq': freq,
+            'export': export,
+            'summary_json': summary_json
+        }
+        create_meta_json(args_dict, seed, list(oof_files.keys()), list(sub_files.keys()), out_dir)
+        
         # Save additional outputs
         output_path = Path(out_dir)
         
@@ -260,6 +290,24 @@ def main(oof_dir: str, sub_dir: str, out_dir: str, metric: str,
             with open(output_path / "decorrelation_info.json", "w") as f:
                 json.dump(serializable_info, f, indent=2)
             print(f"Saved decorrelation info: {output_path / 'decorrelation_info.json'}")
+        
+        # Export PDF if requested
+        if export == 'pdf':
+            print(f"\n📄 Exporting PDF report...")
+            pdf_path = output_path / "report.pdf"
+            if export_to_pdf(report_html, str(pdf_path)):
+                print(f"Saved PDF report: {pdf_path}")
+            else:
+                print("PDF export failed or WeasyPrint not available")
+        
+        # Create blend summary JSON
+        if summary_json:
+            print(f"\n📊 Creating blend summary...")
+            import json
+            blend_summary = create_blend_summary(methods_df, weight_info, stacking_info, blend_results)
+            with open(summary_json, "w") as f:
+                json.dump(blend_summary, f, indent=2)
+            print(f"Saved blend summary: {summary_json}")
         
         # Print summary
         print(f"\n✅ Success! Generated:")

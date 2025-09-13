@@ -3,18 +3,162 @@
 import os
 import pandas as pd
 from pathlib import Path
-from typing import Dict, List, Tuple, Optional
+from typing import Dict, List, Tuple, Optional, Any
 import warnings
+import json
+import numpy as np
+from datetime import datetime
 
 
-def read_oof_files(oof_dir: str) -> Dict[str, pd.DataFrame]:
+def validate_oof_schema(df: pd.DataFrame, filename: str, time_col: Optional[str] = None) -> None:
+    """Validate OOF file schema.
+    
+    Args:
+        df: DataFrame to validate
+        filename: Name of the file for error messages
+        time_col: Optional time column name
+        
+    Raises:
+        ValueError: If schema validation fails
+    """
+    # Required columns
+    required_cols = ['id', 'pred']
+    missing_cols = [col for col in required_cols if col not in df.columns]
+    if missing_cols:
+        raise ValueError(f"OOF file {filename} missing required columns: {missing_cols}")
+    
+    # Optional columns
+    optional_cols = ['fold', 'target']
+    if time_col:
+        optional_cols.append(time_col)
+    
+    # Check for unexpected columns
+    expected_cols = set(required_cols + optional_cols)
+    unexpected_cols = set(df.columns) - expected_cols
+    if unexpected_cols:
+        warnings.warn(f"OOF file {filename} has unexpected columns: {unexpected_cols}")
+    
+    # Validate data types
+    if not pd.api.types.is_numeric_dtype(df['pred']):
+        raise ValueError(f"OOF file {filename} 'pred' column must be numeric")
+    
+    if not pd.api.types.is_numeric_dtype(df['id']):
+        raise ValueError(f"OOF file {filename} 'id' column must be numeric")
+    
+    # Check for missing values in required columns
+    if df['id'].isna().any():
+        raise ValueError(f"OOF file {filename} has missing values in 'id' column")
+    
+    if df['pred'].isna().any():
+        raise ValueError(f"OOF file {filename} has missing values in 'pred' column")
+    
+    # Validate fold column if present
+    if 'fold' in df.columns:
+        if not pd.api.types.is_numeric_dtype(df['fold']):
+            raise ValueError(f"OOF file {filename} 'fold' column must be numeric")
+        if df['fold'].isna().any():
+            raise ValueError(f"OOF file {filename} has missing values in 'fold' column")
+    
+    # Validate target column if present
+    if 'target' in df.columns:
+        if not pd.api.types.is_numeric_dtype(df['target']):
+            raise ValueError(f"OOF file {filename} 'target' column must be numeric")
+        if df['target'].isna().any():
+            raise ValueError(f"OOF file {filename} has missing values in 'target' column")
+    
+    # Validate time column if present
+    if time_col and time_col in df.columns:
+        try:
+            pd.to_datetime(df[time_col])
+        except Exception as e:
+            raise ValueError(f"OOF file {filename} '{time_col}' column must be parseable as datetime: {e}")
+
+
+def validate_sub_schema(df: pd.DataFrame, filename: str) -> None:
+    """Validate submission file schema.
+    
+    Args:
+        df: DataFrame to validate
+        filename: Name of the file for error messages
+        
+    Raises:
+        ValueError: If schema validation fails
+    """
+    # Required columns
+    required_cols = ['id', 'pred']
+    missing_cols = [col for col in required_cols if col not in df.columns]
+    if missing_cols:
+        raise ValueError(f"Submission file {filename} missing required columns: {missing_cols}")
+    
+    # Check for unexpected columns
+    expected_cols = set(required_cols)
+    unexpected_cols = set(df.columns) - expected_cols
+    if unexpected_cols:
+        warnings.warn(f"Submission file {filename} has unexpected columns: {unexpected_cols}")
+    
+    # Validate data types
+    if not pd.api.types.is_numeric_dtype(df['pred']):
+        raise ValueError(f"Submission file {filename} 'pred' column must be numeric")
+    
+    if not pd.api.types.is_numeric_dtype(df['id']):
+        raise ValueError(f"Submission file {filename} 'id' column must be numeric")
+    
+    # Check for missing values
+    if df['id'].isna().any():
+        raise ValueError(f"Submission file {filename} has missing values in 'id' column")
+    
+    if df['pred'].isna().any():
+        raise ValueError(f"Submission file {filename} has missing values in 'pred' column")
+
+
+def create_meta_json(args: Dict[str, Any], seed: Optional[int], 
+                    oof_files: List[str], sub_files: List[str], 
+                    output_dir: str) -> None:
+    """Create meta.json with run information.
+    
+    Args:
+        args: Command line arguments
+        seed: Random seed used
+        oof_files: List of OOF file names
+        sub_files: List of submission file names
+        output_dir: Output directory path
+    """
+    import platform
+    import sys
+    
+    meta = {
+        'run_info': {
+            'timestamp': datetime.now().isoformat(),
+            'python_version': sys.version,
+            'platform': platform.platform(),
+            'crediblend_version': '0.4.0'
+        },
+        'arguments': args,
+        'random_seed': seed,
+        'input_files': {
+            'oof_files': oof_files,
+            'submission_files': sub_files
+        },
+        'numpy_version': np.__version__,
+        'pandas_version': pd.__version__
+    }
+    
+    meta_path = Path(output_dir) / 'meta.json'
+    with open(meta_path, 'w') as f:
+        json.dump(meta, f, indent=2, default=str)
+    
+    print(f"Saved metadata: {meta_path}")
+
+
+def read_oof_files(oof_dir: str, time_col: Optional[str] = None) -> Dict[str, pd.DataFrame]:
     """Read all OOF files from directory.
     
     Args:
         oof_dir: Directory containing OOF CSV files
+        time_col: Optional time column name for validation
         
     Returns:
-        Dictionary mapping filename to DataFrame with columns [id, pred, fold?]
+        Dictionary mapping filename to DataFrame with columns [id, pred, fold?, target?, time_col?]
     """
     oof_files = {}
     oof_path = Path(oof_dir)
@@ -25,9 +169,8 @@ def read_oof_files(oof_dir: str) -> Dict[str, pd.DataFrame]:
     for file_path in oof_path.glob("oof_*.csv"):
         df = pd.read_csv(file_path)
         
-        # Validate required columns
-        if 'id' not in df.columns or 'pred' not in df.columns:
-            raise ValueError(f"OOF file {file_path.name} must have 'id' and 'pred' columns")
+        # Validate schema
+        validate_oof_schema(df, file_path.name, time_col)
         
         # Check if fold column exists
         has_fold = 'fold' in df.columns
@@ -60,9 +203,8 @@ def read_sub_files(sub_dir: str) -> Dict[str, pd.DataFrame]:
     for file_path in sub_path.glob("sub_*.csv"):
         df = pd.read_csv(file_path)
         
-        # Validate required columns
-        if 'id' not in df.columns or 'pred' not in df.columns:
-            raise ValueError(f"Submission file {file_path.name} must have 'id' and 'pred' columns")
+        # Validate schema
+        validate_sub_schema(df, file_path.name)
         
         sub_files[file_path.stem] = df
         

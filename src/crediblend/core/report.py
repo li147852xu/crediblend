@@ -2,7 +2,7 @@
 
 import os
 from pathlib import Path
-from typing import Dict, Any
+from typing import Dict, Any, Optional
 from jinja2 import Environment, FileSystemLoader
 import pandas as pd
 
@@ -128,3 +128,125 @@ def create_summary_stats(methods_df: pd.DataFrame) -> Dict[str, Any]:
             stats['std_fold_score'] = fold_scores.std()
     
     return stats
+
+
+def export_to_pdf(html_content: str, output_path: str) -> bool:
+    """Export HTML report to PDF using WeasyPrint.
+    
+    Args:
+        html_content: HTML content to export
+        output_path: Path for PDF output
+        
+    Returns:
+        True if successful, False otherwise
+    """
+    try:
+        from weasyprint import HTML, CSS
+        from weasyprint.text.fonts import FontConfiguration
+        
+        # Create font configuration for better Unicode support
+        font_config = FontConfiguration()
+        
+        # Convert HTML to PDF
+        html_doc = HTML(string=html_content)
+        css = CSS(string="""
+            @page {
+                size: A4;
+                margin: 1in;
+            }
+            body {
+                font-family: Arial, sans-serif;
+                line-height: 1.4;
+            }
+            .metric-value {
+                font-weight: bold;
+            }
+            .good-score {
+                color: #28a745;
+            }
+            .bad-score {
+                color: #dc3545;
+            }
+            table {
+                border-collapse: collapse;
+                width: 100%;
+                margin-bottom: 1rem;
+            }
+            th, td {
+                border: 1px solid #ddd;
+                padding: 8px;
+                text-align: left;
+            }
+            th {
+                background-color: #f2f2f2;
+                font-weight: bold;
+            }
+        """, font_config=font_config)
+        
+        html_doc.write_pdf(output_path, stylesheets=[css], font_config=font_config)
+        return True
+        
+    except ImportError:
+        print("⚠️  WeasyPrint not available. Install with: pip install weasyprint")
+        return False
+    except Exception as e:
+        print(f"⚠️  PDF export failed: {e}")
+        return False
+
+
+def create_blend_summary(methods_df: pd.DataFrame, weight_info: Optional[Dict] = None,
+                        stacking_info: Optional[Dict] = None, 
+                        blend_results: Optional[Dict] = None) -> Dict[str, Any]:
+    """Create blend summary for JSON export.
+    
+    Args:
+        methods_df: Methods comparison DataFrame
+        weight_info: Weight optimization info
+        stacking_info: Stacking info
+        blend_results: Blending results
+        
+    Returns:
+        Dictionary with blend summary
+    """
+    summary = {
+        'timestamp': pd.Timestamp.now().isoformat(),
+        'top_methods': [],
+        'weights': {},
+        'stacking': {},
+        'summary_stats': {}
+    }
+    
+    # Get top 3 methods by OOF score
+    if not methods_df.empty and 'overall_oof' in methods_df.columns:
+        valid_methods = methods_df[methods_df['overall_oof'].notna()].copy()
+        if not valid_methods.empty:
+            top_methods = valid_methods.nlargest(3, 'overall_oof')
+            summary['top_methods'] = [
+                {
+                    'method': row['model'],
+                    'oof_score': float(row['overall_oof']),
+                    'rank': i + 1
+                }
+                for i, (_, row) in enumerate(top_methods.iterrows())
+            ]
+    
+    # Add weights if available
+    if weight_info and weight_info.get('weights'):
+        summary['weights'] = {k: float(v) for k, v in weight_info['weights'].items()}
+    
+    # Add stacking info if available
+    if stacking_info and stacking_info.get('coefficients'):
+        summary['stacking'] = {
+            'meta_learner': stacking_info.get('meta_learner', 'unknown'),
+            'coefficients': {k: float(v) for k, v in stacking_info['coefficients'].items()}
+        }
+    
+    # Add summary statistics
+    if not methods_df.empty:
+        summary['summary_stats'] = {
+            'n_models': len(methods_df),
+            'n_blend_methods': len(blend_results) if blend_results else 0,
+            'best_oof_score': float(methods_df['overall_oof'].max()) if 'overall_oof' in methods_df.columns else None
+        }
+    
+    return summary

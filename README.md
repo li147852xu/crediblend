@@ -26,6 +26,14 @@ A minimal CLI tool for blending machine learning predictions.
 - **Leakage Detection / 泄露检测**: Flag models with suspiciously high performance
 - **Windowed Visualizations / 窗口可视化**: Time series charts and stability heatmaps
 
+### v0.4 - CLI Polish & Reproducibility / CLI优化与可重现性
+- **Strict Input Validation / 严格输入验证**: Comprehensive schema validation with descriptive errors
+- **Deterministic Runs / 确定性运行**: Reproducible results with random seed control
+- **Metadata Tracking / 元数据跟踪**: Complete run information in meta.json
+- **PDF Export / PDF导出**: Professional PDF reports with WeasyPrint
+- **Blend Summary / 混合摘要**: Top-3 methods and weights in JSON format
+- **Enhanced Error Handling / 增强错误处理**: Clear, actionable error messages
+
 ## Installation / 安装
 
 ```bash
@@ -48,6 +56,10 @@ crediblend --oof_dir examples --sub_dir examples --out runs/v02 \
 # v0.3 - Time-Sliced Analysis / 时间切片分析
 crediblend --oof_dir examples --sub_dir examples --out runs/v03 \
   --time-col date --freq M --decorrelate on --stacking lr
+
+# v0.4 - CLI Polish & Reproducibility / CLI优化与可重现性
+crediblend --oof_dir examples --sub_dir examples --out runs/v04 \
+  --export pdf --summary-json runs/v04/blend_summary.json --seed 123
 ```
 
 ### Options / 选项
@@ -68,6 +80,9 @@ crediblend --oof_dir examples --sub_dir examples --out runs/v03 \
 ## File Formats / 文件格式
 
 ### OOF Files (`oof_*.csv`) / OOF文件
+**Required columns / 必需列**: `id`, `pred`  
+**Optional columns / 可选列**: `target`, `fold`, `{time_col}`
+
 ```csv
 id,pred,target,fold,date
 1,0.65,1,0,2023-01-01
@@ -76,12 +91,20 @@ id,pred,target,fold,date
 ```
 
 ### Submission Files (`sub_*.csv`) / 提交文件
+**Required columns / 必需列**: `id`, `pred`
+
 ```csv
-id,pred,date
-1,0.68,2023-01-11
-2,0.29,2023-01-12
+id,pred
+1,0.68
+2,0.29
 ...
 ```
+
+**Schema Validation (v0.4+) / 模式验证**:
+- All required columns must be present and numeric / 所有必需列必须存在且为数值类型
+- No missing values in required columns / 必需列不能有缺失值
+- Time columns must be parseable as datetime / 时间列必须可解析为日期时间
+- Unexpected columns generate warnings / 意外列会生成警告
 
 **Note / 注意**: For time-sliced analysis, include a time column (e.g., `date`) in your OOF files. The time column should be parseable by pandas (e.g., `YYYY-MM-DD` format). / 对于时间切片分析，请在OOF文件中包含时间列（如`date`）。时间列应能被pandas解析（如`YYYY-MM-DD`格式）。
 
@@ -90,6 +113,9 @@ id,pred,date
 - `best_submission.csv`: Best blended predictions / 最佳混合预测
 - `methods.csv`: Model performance comparison table / 模型性能对比表
 - `report.html`: Comprehensive HTML report / 综合HTML报告
+- `report.pdf`: PDF version of report (v0.4+) / PDF版本报告
+- `meta.json`: Run metadata and configuration (v0.4+) / 运行元数据和配置
+- `blend_summary.json`: Top-3 methods and weights summary (v0.4+) / 前3名方法和权重摘要
 - `weights.json`: Optimized ensemble weights / 优化集成权重
 - `stacking_coefficients.json`: Stacking meta-learner coefficients / 堆叠元学习器系数
 - `decorrelation_info.json`: Decorrelation analysis results / 去相关分析结果
