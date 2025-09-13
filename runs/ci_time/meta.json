@@ -1,0 +1,37 @@
+{
+  "run_info": {
+    "timestamp": "2025-09-13T21:53:07.111953",
+    "python_version": "3.13.5 | packaged by Anaconda, Inc. | (main, Jun 12 2025, 11:23:37) [Clang 14.0.6 ]",
+    "platform": "macOS-15.6.1-arm64-arm-64bit-Mach-O",
+    "crediblend_version": "0.4.0"
+  },
+  "arguments": {
+    "oof_dir": "examples",
+    "sub_dir": "examples",
+    "out_dir": "runs/ci_time",
+    "metric": "auc",
+    "target_col": "target",
+    "methods": "mean,rank_mean,logit_mean,best_single",
+    "decorrelate": "on",
+    "stacking": "none",
+    "search": "iters=200,restarts=16",
+    "time_col": "date",
+    "freq": "D",
+    "export": "none",
+    "summary_json": null
+  },
+  "random_seed": null,
+  "input_files": {
+    "oof_files": [
+      "oof_modelB"
+    ],
+    "submission_files": [
+      "sub_modelA_time",
+      "sub_modelA",
+      "sub_modelB",
+      "sub_modelB_time"
+    ]
+  },
+  "numpy_version": "2.3.3",
+  "pandas_version": "2.3.2"
+}

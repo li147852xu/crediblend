@@ -34,13 +34,13 @@ def generate_report(oof_metrics: Dict[str, Dict[str, float]],
                    methods_df: pd.DataFrame,
                    blend_results: Dict[str, pd.DataFrame],
                    config: Dict[str, Any],
-                   decorrelation_info: Optional[Dict[str, Any]] = None,
+                   decorrelation_info: Optional[Dict] = None,
                    cluster_summary: Optional[pd.DataFrame] = None,
-                   stacking_info: Optional[Dict[str, Any]] = None,
-                   weight_info: Optional[Dict[str, Any]] = None,
+                   stacking_info: Optional[Dict] = None,
+                   weight_info: Optional[Dict] = None,
                    plots: Optional[Dict[str, str]] = None,
-                   stability_report: Optional[Dict[str, Any]] = None,
-                   window_metrics: Optional[pd.DataFrame] = None) -> str:
+                   stability_report: Optional[Dict] = None,
+                   window_metrics: pd.DataFrame = None) -> str:
     """Generate HTML report.
     
     Args:

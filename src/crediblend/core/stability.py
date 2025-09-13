@@ -2,7 +2,7 @@
 
 import numpy as np
 import pandas as pd
-from typing import Dict, List, Tuple, Optional, Callable, Any
+from typing import Dict, List, Tuple, Optional, Any
 import warnings
 from datetime import datetime, timedelta
 from sklearn.metrics import roc_auc_score
@@ -63,7 +63,7 @@ def compute_windowed_metrics(oof_data: Dict[str, pd.DataFrame],
                            time_col: str,
                            freq: str,
                            target_col: str = "target",
-                           metric_func: Callable = roc_auc_score) -> pd.DataFrame:
+                           metric_func: callable = roc_auc_score) -> pd.DataFrame:
     """Compute metrics for each time window.
     
     Args:
@@ -166,7 +166,7 @@ def detect_dominance_patterns(window_metrics: pd.DataFrame,
     Returns:
         Dictionary with dominance analysis
     """
-    dominance_analysis: Dict[str, Any] = {
+    dominance_analysis = {
         'dominant_models': {},
         'unstable_windows': [],
         'leakage_candidates': []
@@ -193,8 +193,6 @@ def detect_dominance_patterns(window_metrics: pd.DataFrame,
                 dominance_analysis['dominant_models'][model_name] = 0
             dominance_analysis['dominant_models'][model_name] += 1
             
-            if 'unstable_windows' not in dominance_analysis:
-                dominance_analysis['unstable_windows'] = []
             dominance_analysis['unstable_windows'].append({
                 'window': window,
                 'dominant_model': model_name,
@@ -213,8 +211,6 @@ def detect_dominance_patterns(window_metrics: pd.DataFrame,
             
             # Flag if mean AUC > 0.95 or max AUC > 0.99
             if mean_auc > 0.95 or max_auc > 0.99:
-                if 'leakage_candidates' not in dominance_analysis:
-                    dominance_analysis['leakage_candidates'] = []
                 dominance_analysis['leakage_candidates'].append({
                     'model': model,
                     'mean_auc': mean_auc,

@@ -130,7 +130,7 @@ def main(oof_dir: str, sub_dir: str, out_dir: str, metric: str,
         oof_metrics = compute_oof_metrics(oof_files, scorer, target_col)
         
         # Apply decorrelation if enabled
-        decorrelation_info = {}
+        decorrelation_info: Dict[str, Any] = {}
         cluster_summary = pd.DataFrame()
         if config['decorrelate']:
             print(f"\n🔍 Applying decorrelation...")
@@ -170,7 +170,7 @@ def main(oof_dir: str, sub_dir: str, out_dir: str, metric: str,
         blend_results = blend_predictions(aligned_sub_files, oof_metrics, method_list)
         
         # Apply stacking if enabled
-        stacking_info = {}
+        stacking_info: Dict[str, Any] = {}
         if config['stacking'] != 'none':
             print(f"\n📚 Applying stacking with {config['stacking']}...")
             try:
@@ -185,7 +185,7 @@ def main(oof_dir: str, sub_dir: str, out_dir: str, metric: str,
                 print(f"⚠️  Stacking failed: {e}")
         
         # Apply weight optimization
-        weight_info = {}
+        weight_info: Dict[str, Any] = {}
         if 'weighted' in method_list or config['search_params']:
             print(f"\n⚖️  Applying weight optimization...")
             try:

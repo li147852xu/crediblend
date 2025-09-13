@@ -1,0 +1,27 @@
+{
+  "timestamp": "2025-09-13T21:53:17.159061",
+  "top_methods": [
+    {
+      "method": "oof_modelB",
+      "oof_score": 1.0,
+      "rank": 1
+    },
+    {
+      "method": "oof_modelA",
+      "oof_score": 1.0,
+      "rank": 2
+    },
+    {
+      "method": "oof_modelB_time",
+      "oof_score": 1.0,
+      "rank": 3
+    }
+  ],
+  "weights": {},
+  "stacking": {},
+  "summary_stats": {
+    "n_models": 4,
+    "n_blend_methods": 4,
+    "best_oof_score": 1.0
+  }
+}

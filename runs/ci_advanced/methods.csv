@@ -1,0 +1,2 @@
+model,overall_oof,mean_fold,submission_rows,fold_0,fold_1
+oof_modelB,1.0,1.0,0,1.0,1.0
