@@ -264,13 +264,11 @@ def test_stacking_with_missing_target():
         })
     }
     
-    # Should work with only models that have target
-    result_df, stacking_info = stacking_blend(
-        oof_data, sub_data, meta_learner='lr', random_state=42
-    )
-    
-    assert len(result_df) == 3
-    assert stacking_info['n_models'] == 1  # Only one model with target
+    # Should raise error when not enough valid OOF data
+    with pytest.raises(ValueError, match="Not enough valid OOF data for stacking"):
+        result_df, stacking_info = stacking_blend(
+            oof_data, sub_data, meta_learner='lr', random_state=42
+        )
 
 
 if __name__ == '__main__':

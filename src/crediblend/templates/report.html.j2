@@ -107,7 +107,7 @@
             text-align: right;
             margin-top: 30px;
         }
-        .decorrelation-section, .weight-section, .stacking-section {
+        .decorrelation-section, .weight-section, .stacking-section, .stability-section {
             background: #f8f9fa;
             padding: 20px;
             border-radius: 8px;
@@ -124,6 +124,10 @@
         }
         .plot-container img {
             border-radius: 4px;
+        }
+        .bad-score {
+            background-color: #f8d7da;
+            color: #721c24;
         }
     </style>
 </head>
@@ -196,7 +200,7 @@
                     </tr>
                 </thead>
                 <tbody>
-                    {% for _, row in (cluster_summary if cluster_summary is defined and not cluster_summary.empty else pd.DataFrame()).iterrows() %}
+                    {% for _, row in cluster_summary.iterrows() %}
                     <tr>
                         <td>{{ row.cluster_id }}</td>
                         <td><strong>{{ row.model }}</strong></td>
@@ -235,17 +239,17 @@
                 </tr>
             </thead>
             <tbody>
-                {% for _, row in (methods_df if methods_df is defined and not methods_df.empty else pd.DataFrame()).iterrows() %}
+                {% for _, row in methods_df.iterrows() %}
                 <tr>
                     <td><strong>{{ row.model }}</strong></td>
-                    <td class="metric-value {% if row.overall_oof is not none and methods_df is defined and not methods_df.empty and row.overall_oof == methods_df.overall_oof.max() %}good-score{% endif %}">
+                    <td class="metric-value {% if row.overall_oof is not none and row.overall_oof == best_oof_score %}good-score{% endif %}">
                         {% if row.overall_oof is not none %}
                             {{ "%.4f"|format(row.overall_oof) }}
                         {% else %}
                             N/A
                         {% endif %}
                     </td>
-                    <td class="metric-value {% if row.mean_fold is not none and methods_df is defined and not methods_df.empty and row.mean_fold == methods_df.mean_fold.max() %}good-score{% endif %}">
+                    <td class="metric-value {% if row.mean_fold is not none and row.mean_fold == best_oof_score %}good-score{% endif %}">
                         {% if row.mean_fold is not none %}
                             {{ "%.4f"|format(row.mean_fold) }}
                         {% else %}
@@ -335,6 +339,92 @@
                     {% endfor %}
                 </tbody>
             </table>
+            {% endif %}
+        </div>
+        {% endif %}
+
+        {% if stability_report is defined and stability_report and stability_report.summary %}
+        <h2>⏰ Time-Sliced Stability Analysis / 时间切片稳定性分析</h2>
+        <div class="stability-section">
+            <h3>Analysis Summary / 分析摘要</h3>
+            <p><strong>Models Analyzed:</strong> {{ stability_report.summary.n_models }}</p>
+            <p><strong>Time Windows:</strong> {{ stability_report.summary.n_windows }}</p>
+            <p><strong>Total Samples:</strong> {{ stability_report.summary.total_samples }}</p>
+            
+            {% if stability_report is defined and stability_report.warnings %}
+            <h3>⚠️ Warnings / 警告</h3>
+            <ul>
+                {% for warning in stability_report.warnings %}
+                <li>{{ warning }}</li>
+                {% endfor %}
+            </ul>
+            {% endif %}
+            
+            {% if plots is defined and plots.windowed_auc %}
+            <h3>Windowed AUC Trends / 窗口AUC趋势</h3>
+            <div class="plot-container">
+                <img src="data:image/png;base64,{{ plots.windowed_auc }}" alt="Windowed AUC Chart" style="max-width: 100%; height: auto;">
+            </div>
+            {% endif %}
+            
+            {% if plots is defined and plots.stability_heatmap %}
+            <h3>Stability Scores / 稳定性评分</h3>
+            <div class="plot-container">
+                <img src="data:image/png;base64,{{ plots.stability_heatmap }}" alt="Stability Heatmap" style="max-width: 100%; height: auto;">
+            </div>
+            {% endif %}
+            
+            {% if stability_report is defined and stability_report.stability_scores %}
+            <h3>Model Stability Details / 模型稳定性详情</h3>
+            <table>
+                <thead>
+                    <tr>
+                        <th>Model</th>
+                        <th>Mean AUC</th>
+                        <th>Std AUC</th>
+                        <th>Stability Score</th>
+                        <th>IQR Stability</th>
+                        <th>Windows</th>
+                        <th>Min AUC</th>
+                        <th>Max AUC</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for model, scores in (stability_report.stability_scores if stability_report is defined and stability_report.stability_scores else {}).items() %}
+                    <tr>
+                        <td><strong>{{ model }}</strong></td>
+                        <td class="metric-value">{{ "%.4f"|format(scores.mean_auc) }}</td>
+                        <td class="metric-value">{{ "%.4f"|format(scores.std_auc) }}</td>
+                        <td class="metric-value {% if scores.stability_score > 0.2 %}bad-score{% endif %}">
+                            {{ "%.4f"|format(scores.stability_score) }}
+                        </td>
+                        <td class="metric-value">{{ "%.4f"|format(scores.iqr_stability) }}</td>
+                        <td>{{ scores.n_windows }}</td>
+                        <td class="metric-value">{{ "%.4f"|format(scores.min_auc) }}</td>
+                        <td class="metric-value">{{ "%.4f"|format(scores.max_auc) }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+            {% endif %}
+            
+            {% if stability_report is defined and stability_report.dominance_analysis and stability_report.dominance_analysis.dominant_models %}
+            <h3>Model Dominance Analysis / 模型主导性分析</h3>
+            <p><strong>Dominant Models:</strong></p>
+            <ul>
+                {% for model, count in stability_report.dominance_analysis.dominant_models.items() %}
+                <li>{{ model }}: {{ count }} windows</li>
+                {% endfor %}
+            </ul>
+            
+            {% if stability_report is defined and stability_report.dominance_analysis and stability_report.dominance_analysis.leakage_candidates %}
+            <h4>⚠️ Potential Leakage Candidates / 潜在泄露候选</h4>
+            <ul>
+                {% for candidate in stability_report.dominance_analysis.leakage_candidates %}
+                <li>{{ candidate.model }}: mean AUC {{ "%.3f"|format(candidate.mean_auc) }}, max AUC {{ "%.3f"|format(candidate.max_auc) }}</li>
+                {% endfor %}
+            </ul>
+            {% endif %}
             {% endif %}
         </div>
         {% endif %}

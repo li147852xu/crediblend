@@ -79,7 +79,7 @@ def hierarchical_clustering(corr_matrix: pd.DataFrame,
     
     # Map to model names
     model_names = corr_matrix.index.tolist()
-    cluster_map = {model_names[i]: cluster_ids[i] for i in range(len(model_names))}
+    cluster_map = {model_names[i]: int(cluster_ids[i]) for i in range(len(model_names))}
     
     return cluster_map
 

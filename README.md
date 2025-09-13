@@ -19,6 +19,13 @@ A minimal CLI tool for blending machine learning predictions.
 - **Visualizations / 可视化**: Correlation heatmaps, weight plots, and performance charts
 - **Bilingual Reports / 双语报告**: Chinese-English interface and documentation
 
+### v0.3 - Time-Sliced Diagnostics / 时间切片诊断
+- **Time-Sliced Analysis / 时间切片分析**: Per-window AUC computation and trend analysis
+- **Stability Diagnostics / 稳定性诊断**: Model stability scoring and instability detection
+- **Dominance Analysis / 主导性分析**: Identify models that dominate across time windows
+- **Leakage Detection / 泄露检测**: Flag models with suspiciously high performance
+- **Windowed Visualizations / 窗口可视化**: Time series charts and stability heatmaps
+
 ## Installation / 安装
 
 ```bash
@@ -34,8 +41,13 @@ crediblend --oof_dir examples --sub_dir examples --out runs/demo
 
 ### Advanced Usage / 高级用法
 ```bash
+# v0.2 - Advanced Ensemble / 高级集成
 crediblend --oof_dir examples --sub_dir examples --out runs/v02 \
   --decorrelate on --stacking lr --search iters=200,restarts=8 --seed 42
+
+# v0.3 - Time-Sliced Analysis / 时间切片分析
+crediblend --oof_dir examples --sub_dir examples --out runs/v03 \
+  --time-col date --freq M --decorrelate on --stacking lr
 ```
 
 ### Options / 选项
@@ -50,24 +62,28 @@ crediblend --oof_dir examples --sub_dir examples --out runs/v02 \
 - `--stacking`: Enable stacking with meta-learner (`lr`/`ridge`/`none`) [default: `none`] / 启用堆叠
 - `--search`: Weight search parameters (`iters=N,restarts=M`) / 权重搜索参数
 - `--seed`: Random seed for reproducibility / 随机种子
+- `--time-col`: Time column name for time-sliced analysis (e.g., `date`) / 时间列名称
+- `--freq`: Time frequency for windowing (`M`/`W`/`D`) [default: `M`] / 时间窗口频率
 
 ## File Formats / 文件格式
 
 ### OOF Files (`oof_*.csv`) / OOF文件
 ```csv
-id,pred,target,fold
-1,0.65,1,0
-2,0.32,0,0
+id,pred,target,fold,date
+1,0.65,1,0,2023-01-01
+2,0.32,0,0,2023-01-02
 ...
 ```
 
 ### Submission Files (`sub_*.csv`) / 提交文件
 ```csv
-id,pred
-1,0.68
-2,0.29
+id,pred,date
+1,0.68,2023-01-11
+2,0.29,2023-01-12
 ...
 ```
+
+**Note / 注意**: For time-sliced analysis, include a time column (e.g., `date`) in your OOF files. The time column should be parseable by pandas (e.g., `YYYY-MM-DD` format). / 对于时间切片分析，请在OOF文件中包含时间列（如`date`）。时间列应能被pandas解析（如`YYYY-MM-DD`格式）。
 
 ## Output Files / 输出文件
 
@@ -77,6 +93,7 @@ id,pred
 - `weights.json`: Optimized ensemble weights / 优化集成权重
 - `stacking_coefficients.json`: Stacking meta-learner coefficients / 堆叠元学习器系数
 - `decorrelation_info.json`: Decorrelation analysis results / 去相关分析结果
+- `window_metrics.csv`: Time-sliced AUC metrics (v0.3+) / 时间切片AUC指标
 
 ## Advanced Features / 高级功能
 
@@ -91,6 +108,16 @@ Uses meta-learners (LogisticRegression/Ridge) to combine base model predictions.
 ### Weight Optimization / 权重优化
 Optimizes ensemble weights using parallel random restarts and coordinate descent.  
 使用并行随机重启和坐标下降优化集成权重。
+
+### Time-Sliced Analysis / 时间切片分析
+Analyzes model performance across time windows to detect stability issues and potential data leakage.  
+分析模型在不同时间窗口的性能，检测稳定性问题和潜在的数据泄露。
+
+**Features / 功能**:
+- **Windowed AUC**: Compute AUC for each time window / 计算每个时间窗口的AUC
+- **Stability Scoring**: Measure model consistency across time / 测量模型在时间上的一致性
+- **Dominance Detection**: Identify models that dominate specific periods / 识别在特定时期占主导的模型
+- **Leakage Flags**: Flag suspiciously high performance models / 标记性能异常高的模型
 
 ## Development / 开发
 
@@ -107,6 +134,10 @@ crediblend --oof_dir examples --sub_dir examples --out runs/demo
 # Run advanced example / 运行高级示例
 crediblend --oof_dir examples --sub_dir examples --out runs/v02 \
   --decorrelate on --stacking lr --search iters=200,restarts=8
+
+# Run time-sliced analysis / 运行时间切片分析
+crediblend --oof_dir examples --sub_dir examples --out runs/v03 \
+  --time-col date --freq M --decorrelate on --stacking lr
 ```
 
 ## License / 许可证

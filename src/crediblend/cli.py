@@ -2,6 +2,7 @@
 
 import click
 import pandas as pd
+import numpy as np
 from pathlib import Path
 from datetime import datetime
 from typing import Dict, Any
@@ -14,6 +15,9 @@ from .core.decorrelate import filter_redundant_models, get_cluster_summary
 from .core.stacking import stacking_blend
 from .core.weights import optimize_weights
 from .core.plots import create_all_plots
+from .core.stability import (compute_windowed_metrics, compute_stability_scores,
+                           detect_dominance_patterns, generate_stability_report,
+                           save_window_metrics)
 
 
 @click.command()
@@ -32,9 +36,13 @@ from .core.plots import create_all_plots
               help='Weight search parameters (iters=N,restarts=M)')
 @click.option('--seed', type=int, default=None,
               help='Random seed for reproducibility')
+@click.option('--time-col', default=None,
+              help='Time column name for time-sliced analysis (e.g., date)')
+@click.option('--freq', default='M', type=click.Choice(['M', 'W', 'D']),
+              help='Time frequency for windowing (M=month, W=week, D=day)')
 def main(oof_dir: str, sub_dir: str, out_dir: str, metric: str, 
          target_col: str, methods: str, decorrelate: str, stacking: str,
-         search: str, seed: int) -> None:
+         search: str, seed: int, time_col: str, freq: str) -> None:
     """CrediBlend: Blend machine learning predictions.
     
     This tool reads OOF (out-of-fold) and submission files, computes various
@@ -65,6 +73,8 @@ def main(oof_dir: str, sub_dir: str, out_dir: str, metric: str,
         'stacking': stacking,
         'search_params': search_params,
         'seed': seed,
+        'time_col': time_col,
+        'freq': freq,
         'timestamp': datetime.now().strftime('%Y-%m-%d %H:%M:%S')
     }
     
@@ -151,6 +161,39 @@ def main(oof_dir: str, sub_dir: str, out_dir: str, metric: str,
             # Fallback to mean blend
             best_submission = blend_results.get('mean', list(blend_results.values())[0])
         
+        # Time-sliced analysis if time column is provided
+        stability_report = {}
+        window_metrics = pd.DataFrame()
+        if time_col:
+            print(f"\n⏰ Performing time-sliced analysis...")
+            try:
+                # Compute windowed metrics
+                window_metrics = compute_windowed_metrics(
+                    oof_files, time_col, freq, target_col, scorer.score
+                )
+                
+                if not window_metrics.empty:
+                    # Compute stability scores
+                    stability_scores = compute_stability_scores(window_metrics)
+                    
+                    # Detect dominance patterns
+                    dominance_analysis = detect_dominance_patterns(window_metrics)
+                    
+                    # Generate stability report
+                    stability_report = generate_stability_report(
+                        window_metrics, stability_scores, dominance_analysis
+                    )
+                    
+                    # Save window metrics
+                    save_window_metrics(window_metrics, out_dir)
+                    
+                    print(f"✅ Time-sliced analysis completed: {len(window_metrics)} window-method combinations")
+                else:
+                    print("⚠️  No valid time windows found for analysis")
+            except Exception as e:
+                print(f"⚠️  Time-sliced analysis failed: {e}")
+                stability_report = {}
+
         # Create visualizations
         print(f"\n📊 Creating visualizations...")
         plots = create_all_plots(
@@ -161,6 +204,10 @@ def main(oof_dir: str, sub_dir: str, out_dir: str, metric: str,
             blend_results
         )
         
+        # Add stability plots if available
+        if stability_report.get('plots'):
+            plots.update(stability_report['plots'])
+        
         # Generate HTML report
         print(f"\n📄 Generating HTML report...")
         report_html = generate_report(
@@ -169,7 +216,9 @@ def main(oof_dir: str, sub_dir: str, out_dir: str, metric: str,
             cluster_summary=cluster_summary,
             stacking_info=stacking_info,
             weight_info=weight_info,
-            plots=plots
+            plots=plots,
+            stability_report=stability_report,
+            window_metrics=window_metrics
         )
         
         # Save outputs
@@ -200,9 +249,11 @@ def main(oof_dir: str, sub_dir: str, out_dir: str, metric: str,
             serializable_info = {}
             for key, value in decorrelation_info.items():
                 if isinstance(value, pd.DataFrame):
-                    serializable_info[key] = value.to_dict()
+                    serializable_info[key] = value.to_dict('records')
                 elif isinstance(value, np.ndarray):
                     serializable_info[key] = value.tolist()
+                elif isinstance(value, (np.integer, np.floating)):
+                    serializable_info[key] = value.item()
                 else:
                     serializable_info[key] = value
             

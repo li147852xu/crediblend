@@ -1,0 +1,40 @@
+{
+  "correlation_matrix": [
+    {
+      "oof_modelB": 1.0,
+      "oof_modelA": 0.9878787878787878,
+      "oof_modelB_time": 0.9757575757575757,
+      "oof_modelA_time": 0.9757575757575757
+    },
+    {
+      "oof_modelB": 0.9878787878787878,
+      "oof_modelA": 1.0,
+      "oof_modelB_time": 0.9878787878787878,
+      "oof_modelA_time": 0.9878787878787878
+    },
+    {
+      "oof_modelB": 0.9757575757575757,
+      "oof_modelA": 0.9878787878787878,
+      "oof_modelB_time": 1.0,
+      "oof_modelA_time": 0.9999999999999999
+    },
+    {
+      "oof_modelB": 0.9757575757575757,
+      "oof_modelA": 0.9878787878787878,
+      "oof_modelB_time": 0.9999999999999999,
+      "oof_modelA_time": 1.0
+    }
+  ],
+  "cluster_map": {
+    "oof_modelB": 1,
+    "oof_modelA": 1,
+    "oof_modelB_time": 1,
+    "oof_modelA_time": 1
+  },
+  "selected_models": [
+    "oof_modelB"
+  ],
+  "original_count": 4,
+  "filtered_count": 1,
+  "threshold": 0.8
+}

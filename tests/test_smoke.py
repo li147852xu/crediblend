@@ -157,12 +157,16 @@ def test_generate_report(sample_oof_data, sample_sub_data):
     }
     
     config = {
-        'oof_dir': 'examples',
-        'sub_dir': 'examples',
-        'out_dir': 'runs/demo',
-        'metric': 'auc',
-        'timestamp': '2024-01-01 12:00:00'
-    }
+            'oof_dir': 'examples',
+            'sub_dir': 'examples',
+            'out_dir': 'runs/demo',
+            'metric': 'auc',
+            'timestamp': '2024-01-01 12:00:00',
+            'decorrelate': False,
+            'stacking': 'none',
+            'search_params': None,
+            'seed': None
+        }
     
     html = generate_report(oof_metrics, methods_df, blend_results, config)
     

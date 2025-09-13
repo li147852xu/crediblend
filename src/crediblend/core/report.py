@@ -38,7 +38,9 @@ def generate_report(oof_metrics: Dict[str, Dict[str, float]],
                    cluster_summary: pd.DataFrame = None,
                    stacking_info: Dict = None,
                    weight_info: Dict = None,
-                   plots: Dict[str, str] = None) -> str:
+                   plots: Dict[str, str] = None,
+                   stability_report: Dict = None,
+                   window_metrics: pd.DataFrame = None) -> str:
     """Generate HTML report.
     
     Args:
@@ -61,10 +63,12 @@ def generate_report(oof_metrics: Dict[str, Dict[str, float]],
         'n_models': len(oof_metrics),
         'n_blend_methods': len(blend_results),
         'decorrelation_info': decorrelation_info or {},
-        'cluster_summary': cluster_summary or pd.DataFrame(),
+        'cluster_summary': cluster_summary if cluster_summary is not None and not cluster_summary.empty else None,
         'stacking_info': stacking_info or {},
         'weight_info': weight_info or {},
         'plots': plots or {},
+        'stability_report': stability_report or {},
+        'window_metrics': window_metrics if window_metrics is not None and not window_metrics.empty else None,
     }
     
     # Add summary statistics
