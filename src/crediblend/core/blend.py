@@ -174,6 +174,10 @@ def blend_predictions(sub_files: Dict[str, pd.DataFrame],
             results[method] = rank_mean_blend(sub_files)
         elif method == "logit_mean":
             results[method] = logit_mean_blend(sub_files)
+        elif method == "weighted":
+            # For weighted blending, we'll use mean as fallback
+            # The actual weighted blending is handled separately
+            results[method] = mean_blend(sub_files)
         elif method == "best_single":
             results[method] = get_best_blend(sub_files, oof_metrics)
         else:

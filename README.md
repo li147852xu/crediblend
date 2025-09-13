@@ -34,6 +34,20 @@ A minimal CLI tool for blending machine learning predictions.
 - **Blend Summary / 混合摘要**: Top-3 methods and weights in JSON format
 - **Enhanced Error Handling / 增强错误处理**: Clear, actionable error messages
 
+### v0.5-rc - Stable SDK / 稳定SDK
+- **Python API / Python API**: Production-ready SDK with Pydantic validation
+- **Exit Codes / 退出代码**: Meaningful codes for CI/CD integration
+- **CI/CD Workflows / CI/CD工作流**: Complete GitHub Actions workflows
+- **API Documentation / API文档**: Comprehensive documentation and examples
+
+### v1.0.0 - Production GA / 生产就绪
+- **Performance Optimization / 性能优化**: Parallel processing with joblib, memory optimization
+- **Memory Guard / 内存保护**: Chunked reading, float32 downcasting, memory caps
+- **Auto Strategy / 自动策略**: Intelligent strategy selection based on data characteristics
+- **Rich Reports / 丰富报告**: "Why chosen" narrative, marginal gains, stability analysis
+- **Docker Support / Docker支持**: Production-ready containerization
+- **Integration Hooks / 集成钩子**: Stable contracts for tabular-agent integration
+
 ## Installation / 安装
 
 ```bash
@@ -60,6 +74,45 @@ crediblend --oof_dir examples --sub_dir examples --out runs/v03 \
 # v0.4 - CLI Polish & Reproducibility / CLI优化与可重现性
 crediblend --oof_dir examples --sub_dir examples --out runs/v04 \
   --export pdf --summary-json runs/v04/blend_summary.json --seed 123
+
+# v1.0.0 - Performance & Auto Strategy / 性能与自动策略
+crediblend --oof_dir examples --sub_dir examples --out runs/v10 \
+  --n-jobs 8 --memory-cap 4096 --strategy auto --seed 42
+```
+
+### Python API / Python API
+```python
+from crediblend.api import fit_blend, predict_blend, quick_blend
+import pandas as pd
+
+# Load data
+oof_data = [pd.read_csv('oof_model1.csv'), pd.read_csv('oof_model2.csv')]
+sub_data = [pd.read_csv('sub_model1.csv'), pd.read_csv('sub_model2.csv')]
+
+# Quick blending
+result = quick_blend(oof_data, sub_data, method='mean')
+print(result.predictions)
+
+# Advanced blending with configuration
+from crediblend.api import BlendConfig
+config = BlendConfig(method='weighted', metric='auc', random_state=42)
+model = fit_blend(oof_data, config=config)
+result = predict_blend(model, sub_data)
+```
+
+### Docker Usage / Docker使用
+```bash
+# Build image
+docker build -t crediblend .
+
+# Run with data mounted
+docker run -v $(pwd)/data:/data -v $(pwd)/results:/results \
+  crediblend --oof_dir /data/oof --sub_dir /data/sub --out /results
+
+# Performance-optimized run
+docker run -v $(pwd)/data:/data -v $(pwd)/results:/results \
+  crediblend --oof_dir /data/oof --sub_dir /data/sub --out /results \
+  --n-jobs 4 --memory-cap 2048 --strategy auto
 ```
 
 ### Options / 选项
@@ -76,6 +129,11 @@ crediblend --oof_dir examples --sub_dir examples --out runs/v04 \
 - `--seed`: Random seed for reproducibility / 随机种子
 - `--time-col`: Time column name for time-sliced analysis (e.g., `date`) / 时间列名称
 - `--freq`: Time frequency for windowing (`M`/`W`/`D`) [default: `M`] / 时间窗口频率
+- `--export`: Export format for report (`pdf`, `none`) [default: `none`] / 报告导出格式
+- `--summary-json`: Path to save blend summary JSON / 混合摘要JSON路径
+- `--n-jobs`: Number of parallel jobs (-1 for all CPUs) [default: -1] / 并行作业数
+- `--memory-cap`: Memory cap in MB [default: 4096] / 内存限制(MB)
+- `--strategy`: Blending strategy (`auto`, `mean`, `weighted`, `decorrelate_weighted`) [default: `mean`] / 混合策略
 
 ## File Formats / 文件格式
 
@@ -165,6 +223,41 @@ crediblend --oof_dir examples --sub_dir examples --out runs/v02 \
 crediblend --oof_dir examples --sub_dir examples --out runs/v03 \
   --time-col date --freq M --decorrelate on --stacking lr
 ```
+
+## FAQ / 常见问题
+
+### Performance / 性能
+**Q: How much memory does CrediBlend use?**  
+**问：CrediBlend使用多少内存？**
+- A: Memory usage depends on data size. Use `--memory-cap` to limit usage. For 200k rows × 8 models, expect ~500MB-1GB.
+- 答：内存使用取决于数据大小。使用`--memory-cap`限制使用。对于20万行×8个模型，预计约500MB-1GB。
+
+**Q: How long does blending take?**  
+**问：混合需要多长时间？**
+- A: For 200k rows × 8 models, expect 1-5 minutes depending on strategy and hardware.
+- 答：对于20万行×8个模型，根据策略和硬件，预计1-5分钟。
+
+### Integration / 集成
+**Q: How do I integrate CrediBlend with tabular-agent?**  
+**问：如何将CrediBlend与tabular-agent集成？**
+- A: Use the `--export` and `--summary-json` options to generate structured outputs that can be parsed by other tools.
+- 答：使用`--export`和`--summary-json`选项生成可被其他工具解析的结构化输出。
+
+**Q: What exit codes does CrediBlend return?**  
+**问：CrediBlend返回什么退出代码？**
+- A: 0=success, 2=warnings, 3=no improvement, 4=error. Use these for CI/CD integration.
+- 答：0=成功，2=警告，3=无改进，4=错误。用于CI/CD集成。
+
+### Troubleshooting / 故障排除
+**Q: "No improvement over best single model" - what does this mean?**  
+**问："无改进超过最佳单模型" - 这意味着什么？**
+- A: Your ensemble methods didn't outperform the best individual model. Try different strategies or check model diversity.
+- 答：您的集成方法没有超过最佳单个模型。尝试不同的策略或检查模型多样性。
+
+**Q: "Memory usage exceeded cap" - how to fix?**  
+**问："内存使用超过限制" - 如何修复？**
+- A: Increase `--memory-cap` or reduce data size. Use `--strategy mean` for memory-efficient processing.
+- 答：增加`--memory-cap`或减少数据大小。使用`--strategy mean`进行内存高效处理。
 
 ## License / 许可证
 

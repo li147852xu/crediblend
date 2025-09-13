@@ -18,6 +18,9 @@ from .core.plots import create_all_plots
 from .core.stability import (compute_windowed_metrics, compute_stability_scores,
                            detect_dominance_patterns, generate_stability_report,
                            save_window_metrics)
+from .core.performance import (auto_strategy_selection, performance_guardrails,
+                             parallel_weight_optimization, memory_efficient_blend,
+                             get_memory_usage)
 
 
 @click.command()
@@ -43,10 +46,14 @@ from .core.stability import (compute_windowed_metrics, compute_stability_scores,
 @click.option('--export', type=click.Choice(['pdf', 'none']), default='none',
               help='Export format for report (pdf/none)')
 @click.option('--summary-json', help='Path to save blend summary JSON')
+@click.option('--n-jobs', type=int, default=-1, help='Number of parallel jobs (-1 for all CPUs)')
+@click.option('--memory-cap', type=int, default=4096, help='Memory cap in MB')
+@click.option('--strategy', type=click.Choice(['auto', 'mean', 'weighted', 'decorrelate_weighted']), 
+              default='mean', help='Blending strategy')
 def main(oof_dir: str, sub_dir: str, out_dir: str, metric: str,
          target_col: str, methods: str, decorrelate: str, stacking: str,
          search: str, seed: int, time_col: str, freq: str, export: str, 
-         summary_json: str) -> None:
+         summary_json: str, n_jobs: int, memory_cap: int, strategy: str) -> None:
     """CrediBlend: Blend machine learning predictions.
     
     This tool reads OOF (out-of-fold) and submission files, computes various
@@ -55,6 +62,7 @@ def main(oof_dir: str, sub_dir: str, out_dir: str, metric: str,
     print("🎯 CrediBlend - Machine Learning Prediction Blending")
     print("=" * 50)
     print(f"Using metric: {metric}")
+    print(f"Memory cap: {memory_cap}MB, Parallel jobs: {n_jobs}")
     
     # Set random seeds for reproducibility
     if seed is not None:
@@ -87,6 +95,9 @@ def main(oof_dir: str, sub_dir: str, out_dir: str, metric: str,
         'seed': seed,
         'time_col': time_col,
         'freq': freq,
+        'n_jobs': n_jobs,
+        'memory_cap': memory_cap,
+        'strategy': strategy,
         'timestamp': datetime.now().strftime('%Y-%m-%d %H:%M:%S')
     }
     
@@ -102,6 +113,13 @@ def main(oof_dir: str, sub_dir: str, out_dir: str, metric: str,
         # Read submission files
         print(f"\n📁 Reading submission files from: {sub_dir}")
         sub_files = read_sub_files(sub_dir)
+        
+        # Apply performance guardrails
+        print(f"\n🛡️  Applying performance guardrails...")
+        oof_files = performance_guardrails(oof_files, memory_cap, max_models=20)
+        sub_files = performance_guardrails(sub_files, memory_cap, max_models=20)
+        
+        print(f"Memory usage: {get_memory_usage():.1f}MB")
         
         # Align submission IDs
         print(f"\n🔗 Aligning submission IDs...")
@@ -133,6 +151,21 @@ def main(oof_dir: str, sub_dir: str, out_dir: str, metric: str,
         methods_df = create_methods_table(oof_metrics, aligned_sub_files)
         
         # Apply blending methods
+        if strategy == 'auto':
+            print(f"\n🤖 Auto strategy selection...")
+            selected_strategy = auto_strategy_selection(oof_files, aligned_sub_files, 
+                                                      target_col, metric, memory_cap, n_jobs)
+            print(f"Selected strategy: {selected_strategy}")
+            
+            if selected_strategy == 'decorrelate_weighted':
+                # Apply decorrelation + weighted blending
+                decorrelate = 'on'
+                method_list = ['weighted']
+            elif selected_strategy == 'weighted':
+                method_list = ['weighted']
+            else:
+                method_list = ['mean']
+        
         print(f"\n🔄 Applying blending methods: {', '.join(method_list)}")
         blend_results = blend_predictions(aligned_sub_files, oof_metrics, method_list)
         
@@ -153,15 +186,40 @@ def main(oof_dir: str, sub_dir: str, out_dir: str, metric: str,
         
         # Apply weight optimization
         weight_info = {}
-        if 'weight_optimization' in method_list or config['search_params']:
+        if 'weighted' in method_list or config['search_params']:
             print(f"\n⚖️  Applying weight optimization...")
             try:
                 n_restarts = config['search_params'].get('restarts', 16)
-                weight_result, weight_info = optimize_weights(
-                    oof_files, aligned_sub_files, scorer.score,
-                    target_col=target_col, n_restarts=n_restarts, random_state=seed
-                )
-                blend_results['weight_optimization'] = weight_result
+                if n_jobs != 1:
+                    print(f"Using parallel optimization with {n_jobs} jobs...")
+                    weights, best_score, weight_info = parallel_weight_optimization(
+                        oof_files, aligned_sub_files, scorer, target_col,
+                        n_restarts, n_jobs
+                    )
+                    # Create weighted blend result
+                    if weights:
+                        weighted_pred = np.zeros(len(aligned_sub_files[list(aligned_sub_files.keys())[0]]))
+                        for model_name, weight in weights.items():
+                            # Map model names from oof_files to aligned_sub_files
+                            if model_name in aligned_sub_files:
+                                weighted_pred += weight * aligned_sub_files[model_name]['pred'].values
+                            else:
+                                # Try to find matching model by removing prefixes
+                                for sub_name in aligned_sub_files.keys():
+                                    if model_name.replace('oof_', 'sub_') == sub_name or \
+                                       model_name.replace('model_', 'sub_model') == sub_name:
+                                        weighted_pred += weight * aligned_sub_files[sub_name]['pred'].values
+                                        break
+                        blend_results['weighted'] = pd.DataFrame({
+                            'id': aligned_sub_files[list(aligned_sub_files.keys())[0]]['id'].values,
+                            'pred': weighted_pred
+                        })
+                else:
+                    weight_result, weight_info = optimize_weights(
+                        oof_files, aligned_sub_files, scorer,
+                        target_col=target_col, n_restarts=n_restarts, random_state=seed
+                    )
+                    blend_results['weighted'] = weight_result
             except Exception as e:
                 print(f"⚠️  Weight optimization failed: {e}")
                 weight_info = {}
