@@ -7,7 +7,7 @@ from jinja2 import Environment, FileSystemLoader
 import pandas as pd
 
 
-def load_template(template_name: str = "report.html.j2") -> str:
+def load_template(template_name: str = "report.html.j2"):
     """Load Jinja2 template.
     
     Args:
@@ -34,13 +34,13 @@ def generate_report(oof_metrics: Dict[str, Dict[str, float]],
                    methods_df: pd.DataFrame,
                    blend_results: Dict[str, pd.DataFrame],
                    config: Dict[str, Any],
-                   decorrelation_info: Dict = None,
-                   cluster_summary: pd.DataFrame = None,
-                   stacking_info: Dict = None,
-                   weight_info: Dict = None,
-                   plots: Dict[str, str] = None,
-                   stability_report: Dict = None,
-                   window_metrics: pd.DataFrame = None) -> str:
+                   decorrelation_info: Optional[Dict[str, Any]] = None,
+                   cluster_summary: Optional[pd.DataFrame] = None,
+                   stacking_info: Optional[Dict[str, Any]] = None,
+                   weight_info: Optional[Dict[str, Any]] = None,
+                   plots: Optional[Dict[str, str]] = None,
+                   stability_report: Optional[Dict[str, Any]] = None,
+                   window_metrics: Optional[pd.DataFrame] = None) -> str:
     """Generate HTML report.
     
     Args:

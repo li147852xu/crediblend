@@ -151,7 +151,7 @@ def get_best_blend(sub_files: Dict[str, pd.DataFrame],
 
 def blend_predictions(sub_files: Dict[str, pd.DataFrame],
                      oof_metrics: Dict[str, Dict[str, float]],
-                     methods: List[str] = None) -> Dict[str, pd.DataFrame]:
+                     methods: Optional[List[str]] = None) -> Dict[str, pd.DataFrame]:
     """Apply multiple blending methods.
     
     Args:
