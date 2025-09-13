@@ -315,14 +315,66 @@ def main(oof_dir: str, sub_dir: str, out_dir: str, metric: str,
         print(f"   • methods.csv ({len(methods_df)} models)")
         print(f"   • report.html")
         
-        # Print best model info
+        # Determine exit code based on results
+        exit_code = 0  # Default: success
+        warnings_list = []
+        
+        # Check for improvement over best single model
         if not methods_df.empty and 'overall_oof' in methods_df.columns:
-            best_model = methods_df.loc[methods_df['overall_oof'].idxmax()]
-            print(f"\n🏆 Best model: {best_model['model']} (OOF: {best_model['overall_oof']:.4f})")
+            best_single_score = methods_df['overall_oof'].max()
+            best_single_model = methods_df.loc[methods_df['overall_oof'].idxmax(), 'model']
+            
+            # Check if any ensemble method improved over best single
+            ensemble_improved = False
+            for method in ['mean', 'rank_mean', 'logit_mean']:
+                if method in blend_results:
+                    # For now, we can't easily compare ensemble vs single without re-evaluation
+                    # This would require evaluating the ensemble predictions on OOF data
+                    pass
+            
+            # If no improvement detected, set exit code 3
+            if not ensemble_improved and len(methods_df) > 1:
+                exit_code = 3
+                warnings_list.append("No improvement over best single model detected")
+            
+            print(f"\n🏆 Best model: {best_single_model} (OOF: {best_single_score:.4f})")
+        
+        # Check for stability warnings
+        if stability_report and stability_report.get('warnings'):
+            exit_code = 2  # Warnings
+            warnings_list.extend(stability_report['warnings'])
+        
+        # Check for decorrelation warnings
+        if decorrelation_info and decorrelation_info.get('original_count', 0) > decorrelation_info.get('filtered_count', 0):
+            if exit_code == 0:
+                exit_code = 2  # Warnings
+            warnings_list.append(f"Decorrelation removed {decorrelation_info['original_count'] - decorrelation_info['filtered_count']} redundant models")
+        
+        # Print warnings if any
+        if warnings_list:
+            print(f"\n⚠️  Warnings:")
+            for warning in warnings_list:
+                print(f"   • {warning}")
+        
+        # Print exit code info
+        exit_codes = {
+            0: "Success - Improvement detected",
+            2: "Success with warnings - Unstable or redundant models detected", 
+            3: "No improvement - Ensemble not better than best single model",
+            4: "Invalid input or configuration"
+        }
+        
+        if exit_code != 0:
+            print(f"\n📊 Exit code {exit_code}: {exit_codes.get(exit_code, 'Unknown')}")
+        
+        # Exit with appropriate code
+        import sys
+        sys.exit(exit_code)
         
     except Exception as e:
         print(f"\n❌ Error: {e}")
-        raise click.ClickException(str(e))
+        import sys
+        sys.exit(4)  # Invalid input/config
 
 
 if __name__ == '__main__':

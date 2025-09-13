@@ -1,0 +1,132 @@
+name: Release
+
+on:
+  push:
+    branches: [ main ]
+  release:
+    types: [ published ]
+
+jobs:
+  test-pypi:
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main'
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Set up Python 3.11
+      uses: actions/setup-python@v4
+      with:
+        python-version: "3.11"
+    
+    - name: Install system dependencies
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y libpango-1.0-0 libharfbuzz0b libpangoft2-1.0-0
+    
+    - name: Install build dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install build twine
+    
+    - name: Build package
+      run: |
+        python -m build
+    
+    - name: Publish to TestPyPI
+      env:
+        TWINE_USERNAME: __token__
+        TWINE_PASSWORD: ${{ secrets.TEST_PYPI_API_TOKEN }}
+        TWINE_REPOSITORY: testpypi
+      run: |
+        twine upload dist/*
+    
+    - name: Test installation from TestPyPI
+      run: |
+        pip install --index-url https://test.pypi.org/simple/ crediblend
+        python -c "import crediblend; print('✅ TestPyPI installation successful')"
+
+  pypi:
+    runs-on: ubuntu-latest
+    if: startsWith(github.ref, 'refs/tags/v')
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Set up Python 3.11
+      uses: actions/setup-python@v4
+      with:
+        python-version: "3.11"
+    
+    - name: Install system dependencies
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y libpango-1.0-0 libharfbuzz0b libpangoft2-1.0-0
+    
+    - name: Install build dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install build twine
+    
+    - name: Build package
+      run: |
+        python -m build
+    
+    - name: Publish to PyPI
+      env:
+        TWINE_USERNAME: __token__
+        TWINE_PASSWORD: ${{ secrets.PYPI_API_TOKEN }}
+      run: |
+        twine upload dist/*
+    
+    - name: Test installation from PyPI
+      run: |
+        pip install crediblend
+        python -c "import crediblend; print('✅ PyPI installation successful')"
+    
+    - name: Create GitHub Release
+      uses: actions/create-release@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        tag_name: ${{ github.ref_name }}
+        release_name: Release ${{ github.ref_name }}
+        body: |
+          ## CrediBlend ${{ github.ref_name }}
+          
+          ### Features
+          - Stable Python API with `fit_blend`, `predict_blend`, `search_weights`
+          - Meaningful exit codes for CI/CD integration
+          - Comprehensive input validation and error handling
+          - PDF export and metadata tracking
+          - Time-sliced stability analysis
+          - Advanced ensemble methods (decorrelation, stacking, weight optimization)
+          
+          ### Installation
+          ```bash
+          pip install crediblend
+          ```
+          
+          ### Quick Start
+          ```python
+          from crediblend.api import fit_blend, predict_blend
+          import pandas as pd
+          
+          # Load your OOF and submission data
+          oof_data = [pd.read_csv('oof_model1.csv'), pd.read_csv('oof_model2.csv')]
+          sub_data = [pd.read_csv('sub_model1.csv'), pd.read_csv('sub_model2.csv')]
+          
+          # Fit and predict
+          model = fit_blend(oof_data, method='mean')
+          result = predict_blend(model, sub_data)
+          print(result.predictions)
+          ```
+          
+          ### CLI Usage
+          ```bash
+          crediblend --oof_dir data/oof --sub_dir data/sub --out results
+          ```
+          
+          See [documentation](https://github.com/li147852xu/crediblend) for more details.
+        draft: false
+        prerelease: false
