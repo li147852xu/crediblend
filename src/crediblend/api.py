@@ -3,7 +3,12 @@
 from typing import List, Dict, Any, Optional, Union, Tuple
 import pandas as pd
 import numpy as np
-from pydantic import BaseModel, Field, field_validator
+try:
+    from pydantic import BaseModel, Field, field_validator
+    PYDANTIC_V2 = True
+except ImportError:
+    from pydantic import BaseModel, Field, validator
+    PYDANTIC_V2 = False
 from pathlib import Path
 import warnings
 
@@ -29,21 +34,36 @@ class BlendConfig(BaseModel):
     weight_search: bool = Field(default=False, description="Enable weight optimization")
     search_params: Dict[str, int] = Field(default_factory=lambda: {"iters": 200, "restarts": 16})
     
-    @field_validator('method')
-    @classmethod
-    def validate_method(cls, v):
-        valid_methods = ['mean', 'rank_mean', 'logit_mean', 'best_single', 'weighted', 'stacking']
-        if v not in valid_methods:
-            raise ValueError(f"Invalid method: {v}. Must be one of {valid_methods}")
-        return v
-    
-    @field_validator('metric')
-    @classmethod
-    def validate_metric(cls, v):
-        valid_metrics = ['auc', 'mse', 'mae']
-        if v not in valid_metrics:
-            raise ValueError(f"Invalid metric: {v}. Must be one of {valid_metrics}")
-        return v
+    if PYDANTIC_V2:
+        @field_validator('method')
+        @classmethod
+        def validate_method(cls, v):
+            valid_methods = ['mean', 'rank_mean', 'logit_mean', 'best_single', 'weighted', 'stacking']
+            if v not in valid_methods:
+                raise ValueError(f"Invalid method: {v}. Must be one of {valid_methods}")
+            return v
+        
+        @field_validator('metric')
+        @classmethod
+        def validate_metric(cls, v):
+            valid_metrics = ['auc', 'mse', 'mae']
+            if v not in valid_metrics:
+                raise ValueError(f"Invalid metric: {v}. Must be one of {valid_metrics}")
+            return v
+    else:
+        @validator('method')
+        def validate_method(cls, v):
+            valid_methods = ['mean', 'rank_mean', 'logit_mean', 'best_single', 'weighted', 'stacking']
+            if v not in valid_methods:
+                raise ValueError(f"Invalid method: {v}. Must be one of {valid_methods}")
+            return v
+        
+        @validator('metric')
+        def validate_metric(cls, v):
+            valid_metrics = ['auc', 'mse', 'mae']
+            if v not in valid_metrics:
+                raise ValueError(f"Invalid metric: {v}. Must be one of {valid_metrics}")
+            return v
 
 
 class BlendModel(BaseModel):
@@ -58,7 +78,11 @@ class BlendModel(BaseModel):
     best_single_model: Optional[str] = None
     improvement_over_best_single: Optional[float] = None
     
-    model_config = {"arbitrary_types_allowed": True}
+    if PYDANTIC_V2:
+        model_config = {"arbitrary_types_allowed": True}
+    else:
+        class Config:
+            arbitrary_types_allowed = True
 
 
 class BlendResult(BaseModel):
@@ -69,7 +93,11 @@ class BlendResult(BaseModel):
     improvement_over_best_single: Optional[float] = None
     warnings: List[str] = Field(default_factory=list)
     
-    model_config = {"arbitrary_types_allowed": True}
+    if PYDANTIC_V2:
+        model_config = {"arbitrary_types_allowed": True}
+    else:
+        class Config:
+            arbitrary_types_allowed = True
 
 
 def fit_blend(oof_frames: List[pd.DataFrame], 
@@ -98,7 +126,7 @@ def fit_blend(oof_frames: List[pd.DataFrame],
         config = BlendConfig(method=method, **kwargs)
     else:
         # Update config with kwargs, but don't override method if config already has one
-        config_dict = config.model_dump()
+        config_dict = config.model_dump() if PYDANTIC_V2 else config.dict()
         config_dict.update(kwargs)
         if method != 'mean':  # Only override if method is explicitly provided
             config_dict['method'] = method
@@ -402,7 +430,7 @@ def save_model(model: BlendModel, file_path: Union[str, Path]) -> None:
     import json
     
     # Convert to dict for JSON serialization
-    model_dict = model.model_dump()
+    model_dict = model.model_dump() if PYDANTIC_V2 else model.dict()
     
     with open(file_path, 'w') as f:
         json.dump(model_dict, f, indent=2, default=str)
