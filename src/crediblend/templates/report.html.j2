@@ -107,6 +107,24 @@
             text-align: right;
             margin-top: 30px;
         }
+        .decorrelation-section, .weight-section, .stacking-section {
+            background: #f8f9fa;
+            padding: 20px;
+            border-radius: 8px;
+            margin: 20px 0;
+            border-left: 4px solid #e74c3c;
+        }
+        .plot-container {
+            text-align: center;
+            margin: 20px 0;
+            padding: 10px;
+            background: white;
+            border-radius: 6px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+        }
+        .plot-container img {
+            border-radius: 4px;
+        }
     </style>
 </head>
 <body>
@@ -114,11 +132,17 @@
         <h1>🎯 CrediBlend Report</h1>
         
         <div class="config-section">
-            <h3>Configuration</h3>
+            <h3>Configuration / 配置</h3>
             <p><strong>OOF Directory:</strong> {{ config.oof_dir }}</p>
             <p><strong>Submission Directory:</strong> {{ config.sub_dir }}</p>
             <p><strong>Output Directory:</strong> {{ config.out_dir }}</p>
             <p><strong>Metric:</strong> {{ config.metric }}</p>
+            <p><strong>Decorrelation:</strong> {{ 'Enabled' if config.decorrelate else 'Disabled' }}</p>
+            <p><strong>Stacking:</strong> {{ config.stacking.title() if config.stacking != 'none' else 'Disabled' }}</p>
+            <p><strong>Weight Search:</strong> {{ config.search_params if config.search_params else 'Disabled' }}</p>
+            {% if config.seed %}
+            <p><strong>Random Seed:</strong> {{ config.seed }}</p>
+            {% endif %}
         </div>
 
         <div class="summary-grid">
@@ -130,13 +154,13 @@
                 <h4>Blend Methods</h4>
                 <div class="value">{{ n_blend_methods }}</div>
             </div>
-            {% if best_oof_score %}
+            {% if best_oof_score is not none %}
             <div class="summary-card">
                 <h4>Best OOF Score</h4>
                 <div class="value">{{ "%.4f"|format(best_oof_score) }}</div>
             </div>
             {% endif %}
-            {% if best_model %}
+            {% if best_model is not none %}
             <div class="summary-card">
                 <h4>Best Model</h4>
                 <div class="value">{{ best_model }}</div>
@@ -144,7 +168,58 @@
             {% endif %}
         </div>
 
-        <h2>📊 Model Performance</h2>
+        {% if decorrelation_info is defined and decorrelation_info %}
+        <h2>🔍 Decorrelation Analysis / 去相关分析</h2>
+        <div class="decorrelation-section">
+            <h3>Correlation Matrix / 相关性矩阵</h3>
+            {% if plots is defined and plots.correlation_heatmap %}
+            <div class="plot-container">
+                <img src="data:image/png;base64,{{ plots.correlation_heatmap }}" alt="Correlation Heatmap" style="max-width: 100%; height: auto;">
+            </div>
+            {% endif %}
+            
+            <h3>Clustering Results / 聚类结果</h3>
+            <p><strong>Original Models:</strong> {{ decorrelation_info.original_count }}</p>
+            <p><strong>Selected Models:</strong> {{ decorrelation_info.filtered_count }}</p>
+            <p><strong>Reduction:</strong> {{ ((decorrelation_info.original_count - decorrelation_info.filtered_count) / decorrelation_info.original_count * 100) | round(1) }}%</p>
+            
+            {% if cluster_summary is defined and cluster_summary is not none and not cluster_summary.empty %}
+            <table>
+                <thead>
+                    <tr>
+                        <th>Cluster ID</th>
+                        <th>Model</th>
+                        <th>Rank in Cluster</th>
+                        <th>OOF Score</th>
+                        <th>Is Medoid</th>
+                        <th>Cluster Size</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for _, row in (cluster_summary if cluster_summary is defined and not cluster_summary.empty else pd.DataFrame()).iterrows() %}
+                    <tr>
+                        <td>{{ row.cluster_id }}</td>
+                        <td><strong>{{ row.model }}</strong></td>
+                        <td>{{ row.rank_in_cluster }}</td>
+                        <td class="metric-value {% if row.is_medoid %}good-score{% endif %}">
+                            {% if row.oof_score is not none %}
+                                {{ "%.4f"|format(row.oof_score) }}
+                            {% else %}
+                                N/A
+                            {% endif %}
+                        </td>
+                        <td>{{ 'Yes' if row.is_medoid else 'No' }}</td>
+                        <td>{{ row.cluster_size }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+            {% endif %}
+        </div>
+        {% endif %}
+
+        <h2>📊 Model Performance / 模型性能</h2>
+        {% if methods_df is defined and methods_df is not none and not methods_df.empty %}
         <table>
             <thead>
                 <tr>
@@ -152,7 +227,7 @@
                     <th>Overall OOF</th>
                     <th>Mean Fold</th>
                     <th>Submission Rows</th>
-                    {% for col in methods_df.columns %}
+                    {% for col in (methods_df.columns if methods_df is defined and not methods_df.empty else []) %}
                         {% if col.startswith('fold_') %}
                         <th>{{ col.replace('_', ' ').title() }}</th>
                         {% endif %}
@@ -160,17 +235,17 @@
                 </tr>
             </thead>
             <tbody>
-                {% for _, row in methods_df.iterrows() %}
+                {% for _, row in (methods_df if methods_df is defined and not methods_df.empty else pd.DataFrame()).iterrows() %}
                 <tr>
                     <td><strong>{{ row.model }}</strong></td>
-                    <td class="metric-value {% if row.overall_oof == methods_df.overall_oof.max() %}good-score{% endif %}">
+                    <td class="metric-value {% if row.overall_oof is not none and methods_df is defined and not methods_df.empty and row.overall_oof == methods_df.overall_oof.max() %}good-score{% endif %}">
                         {% if row.overall_oof is not none %}
                             {{ "%.4f"|format(row.overall_oof) }}
                         {% else %}
                             N/A
                         {% endif %}
                     </td>
-                    <td class="metric-value {% if row.mean_fold == methods_df.mean_fold.max() %}good-score{% endif %}">
+                    <td class="metric-value {% if row.mean_fold is not none and methods_df is defined and not methods_df.empty and row.mean_fold == methods_df.mean_fold.max() %}good-score{% endif %}">
                         {% if row.mean_fold is not none %}
                             {{ "%.4f"|format(row.mean_fold) }}
                         {% else %}
@@ -178,7 +253,7 @@
                         {% endif %}
                     </td>
                     <td>{{ row.submission_rows }}</td>
-                    {% for col in methods_df.columns %}
+                    {% for col in (methods_df.columns if methods_df is defined and not methods_df.empty else []) %}
                         {% if col.startswith('fold_') %}
                         <td class="metric-value">
                             {% if row[col] is not none %}
@@ -193,15 +268,87 @@
                 {% endfor %}
             </tbody>
         </table>
+        {% else %}
+        <p>No model performance data available.</p>
+        {% endif %}
 
-        <h2>🔄 Blending Results</h2>
+        {% if weight_info is defined and weight_info %}
+        <h2>⚖️ Weight Optimization / 权重优化</h2>
+        <div class="weight-section">
+            <h3>Optimized Weights / 优化权重</h3>
+            {% if plots is defined and plots.weights_barplot %}
+            <div class="plot-container">
+                <img src="data:image/png;base64,{{ plots.weights_barplot }}" alt="Weights Bar Plot" style="max-width: 100%; height: auto;">
+            </div>
+            {% endif %}
+            
+            <table>
+                <thead>
+                    <tr>
+                        <th>Model</th>
+                        <th>Weight</th>
+                        <th>Percentage</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for model, weight in (weight_info.weights if weight_info.weights else {}).items() %}
+                    <tr>
+                        <td><strong>{{ model }}</strong></td>
+                        <td class="metric-value">{{ "%.4f"|format(weight) }}</td>
+                        <td>{{ "%.1f"|format(weight * 100) }}%</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+            
+            <h3>Optimization Statistics / 优化统计</h3>
+            <p><strong>Best Score:</strong> {{ "%.6f"|format(weight_info.best_score) }}</p>
+            <p><strong>Number of Restarts:</strong> {{ weight_info.optimization_info.n_restarts }}</p>
+            <p><strong>Mean Score:</strong> {{ "%.6f"|format(weight_info.optimization_info.mean_score) }}</p>
+            <p><strong>Convergence Rate:</strong> {{ "%.1f"|format(weight_info.optimization_info.convergence_rate * 100) }}%</p>
+        </div>
+        {% endif %}
+
+        {% if stacking_info is defined and stacking_info %}
+        <h2>📚 Stacking Analysis / 堆叠分析</h2>
+        <div class="stacking-section">
+            <h3>Stacking Configuration / 堆叠配置</h3>
+            <p><strong>Meta-learner:</strong> {{ stacking_info.meta_learner.upper() }}</p>
+            <p><strong>Number of Models:</strong> {{ stacking_info.n_models }}</p>
+            <p><strong>Models:</strong> {{ ', '.join(stacking_info.model_names) }}</p>
+            
+            {% if stacking_info is defined and stacking_info.coefficients %}
+            <h3>Stacking Coefficients / 堆叠系数</h3>
+            <table>
+                <thead>
+                    <tr>
+                        <th>Model</th>
+                        <th>Coefficient</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for model, coef in (stacking_info.coefficients if stacking_info.coefficients else {}).items() %}
+                    <tr>
+                        <td><strong>{{ model }}</strong></td>
+                        <td class="metric-value">{{ "%.4f"|format(coef) }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+            {% endif %}
+        </div>
+        {% endif %}
+
+        <h2>🔄 Blending Results / 混合结果</h2>
         <div class="blend-results">
-            {% for method, df in blend_results.items() %}
+            {% for method, df in (blend_results if blend_results is defined else {}).items() %}
             <div class="blend-method">
                 <h4>{{ method.replace('_', ' ').title() }}</h4>
                 <p><strong>Predictions:</strong> {{ df|length }} rows</p>
+                {% if df is defined and df is not none and not df.empty %}
                 <p><strong>Prediction Range:</strong> {{ "%.4f"|format(df.pred.min()) }} - {{ "%.4f"|format(df.pred.max()) }}</p>
                 <p><strong>Mean Prediction:</strong> {{ "%.4f"|format(df.pred.mean()) }}</p>
+                {% endif %}
             </div>
             {% endfor %}
         </div>

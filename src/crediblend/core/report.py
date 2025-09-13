@@ -33,7 +33,12 @@ def load_template(template_name: str = "report.html.j2") -> str:
 def generate_report(oof_metrics: Dict[str, Dict[str, float]],
                    methods_df: pd.DataFrame,
                    blend_results: Dict[str, pd.DataFrame],
-                   config: Dict[str, Any]) -> str:
+                   config: Dict[str, Any],
+                   decorrelation_info: Dict = None,
+                   cluster_summary: pd.DataFrame = None,
+                   stacking_info: Dict = None,
+                   weight_info: Dict = None,
+                   plots: Dict[str, str] = None) -> str:
     """Generate HTML report.
     
     Args:
@@ -55,12 +60,25 @@ def generate_report(oof_metrics: Dict[str, Dict[str, float]],
         'blend_results': blend_results,
         'n_models': len(oof_metrics),
         'n_blend_methods': len(blend_results),
+        'decorrelation_info': decorrelation_info or {},
+        'cluster_summary': cluster_summary or pd.DataFrame(),
+        'stacking_info': stacking_info or {},
+        'weight_info': weight_info or {},
+        'plots': plots or {},
     }
     
     # Add summary statistics
-    if not methods_df.empty:
-        context['best_model'] = methods_df.loc[methods_df['overall_oof'].idxmax(), 'model'] if 'overall_oof' in methods_df.columns else None
-        context['best_oof_score'] = methods_df['overall_oof'].max() if 'overall_oof' in methods_df.columns else None
+    if not methods_df.empty and 'overall_oof' in methods_df.columns:
+        valid_oof = methods_df[methods_df['overall_oof'].notna()]
+        if not valid_oof.empty:
+            context['best_model'] = valid_oof.loc[valid_oof['overall_oof'].idxmax(), 'model']
+            context['best_oof_score'] = valid_oof['overall_oof'].max()
+        else:
+            context['best_model'] = None
+            context['best_oof_score'] = None
+    else:
+        context['best_model'] = None
+        context['best_oof_score'] = None
     
     # Generate HTML
     html_content = template.render(**context)

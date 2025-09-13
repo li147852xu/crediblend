@@ -1,39 +1,59 @@
-# CrediBlend
+# CrediBlend / 可信混合
 
-A minimal CLI tool for blending machine learning predictions.
+A minimal CLI tool for blending machine learning predictions.  
+一个用于混合机器学习预测的最小化CLI工具。
 
-## Features
+## Features / 功能特性
 
-- **Multiple Blending Methods**: Mean, rank-based mean, and logit-space mean blending
-- **OOF Evaluation**: Out-of-fold metrics with per-fold analysis
-- **Flexible Metrics**: Support for AUC, MSE, and MAE
-- **HTML Reports**: Beautiful, comprehensive reports with Jinja2 templates
-- **ID Alignment**: Automatic alignment of submission files by ID
+### v0.1 - Basic Blending / 基础混合
+- **Multiple Blending Methods / 多种混合方法**: Mean, rank-based mean, and logit-space mean blending
+- **OOF Evaluation / OOF评估**: Out-of-fold metrics with per-fold analysis
+- **Flexible Metrics / 灵活指标**: Support for AUC, MSE, and MAE
+- **HTML Reports / HTML报告**: Beautiful, comprehensive reports with Jinja2 templates
+- **ID Alignment / ID对齐**: Automatic alignment of submission files by ID
 
-## Installation
+### v0.2 - Advanced Ensemble / 高级集成
+- **Decorrelation / 去相关**: Hierarchical clustering to remove redundant models
+- **Stacking / 堆叠**: LogisticRegression and Ridge meta-learners
+- **Weight Optimization / 权重优化**: Parallel random restarts with coordinate descent
+- **Visualizations / 可视化**: Correlation heatmaps, weight plots, and performance charts
+- **Bilingual Reports / 双语报告**: Chinese-English interface and documentation
+
+## Installation / 安装
 
 ```bash
 pip install -e .
 ```
 
-## Usage
+## Usage / 使用方法
 
+### Basic Usage / 基础用法
 ```bash
-crediblend run --oof_dir examples --sub_dir examples --out runs/demo
+crediblend --oof_dir examples --sub_dir examples --out runs/demo
 ```
 
-### Options
+### Advanced Usage / 高级用法
+```bash
+crediblend --oof_dir examples --sub_dir examples --out runs/v02 \
+  --decorrelate on --stacking lr --search iters=200,restarts=8 --seed 42
+```
 
-- `--oof_dir`: Directory containing OOF CSV files (format: `oof_*.csv`)
-- `--sub_dir`: Directory containing submission CSV files (format: `sub_*.csv`)
-- `--out`: Output directory for results
-- `--metric`: Metric to use for evaluation (`auc`, `mse`, `mae`) [default: `auc`]
-- `--target_col`: Name of target column in OOF files [default: `target`]
-- `--methods`: Comma-separated list of blending methods [default: `mean,rank_mean,logit_mean,best_single`]
+### Options / 选项
 
-## File Formats
+- `--oof_dir`: Directory containing OOF CSV files (format: `oof_*.csv`) / OOF CSV文件目录
+- `--sub_dir`: Directory containing submission CSV files (format: `sub_*.csv`) / 提交文件目录
+- `--out`: Output directory for results / 输出结果目录
+- `--metric`: Metric to use for evaluation (`auc`, `mse`, `mae`) [default: `auc`] / 评估指标
+- `--target_col`: Name of target column in OOF files [default: `target`] / 目标列名称
+- `--methods`: Comma-separated list of blending methods / 混合方法列表
+- `--decorrelate`: Enable decorrelation via clustering (`on`/`off`) [default: `off`] / 启用去相关
+- `--stacking`: Enable stacking with meta-learner (`lr`/`ridge`/`none`) [default: `none`] / 启用堆叠
+- `--search`: Weight search parameters (`iters=N,restarts=M`) / 权重搜索参数
+- `--seed`: Random seed for reproducibility / 随机种子
 
-### OOF Files (`oof_*.csv`)
+## File Formats / 文件格式
+
+### OOF Files (`oof_*.csv`) / OOF文件
 ```csv
 id,pred,target,fold
 1,0.65,1,0
@@ -41,7 +61,7 @@ id,pred,target,fold
 ...
 ```
 
-### Submission Files (`sub_*.csv`)
+### Submission Files (`sub_*.csv`) / 提交文件
 ```csv
 id,pred
 1,0.68
@@ -49,25 +69,46 @@ id,pred
 ...
 ```
 
-## Output Files
+## Output Files / 输出文件
 
-- `best_submission.csv`: Best blended predictions
-- `methods.csv`: Model performance comparison table
-- `report.html`: Comprehensive HTML report
+- `best_submission.csv`: Best blended predictions / 最佳混合预测
+- `methods.csv`: Model performance comparison table / 模型性能对比表
+- `report.html`: Comprehensive HTML report / 综合HTML报告
+- `weights.json`: Optimized ensemble weights / 优化集成权重
+- `stacking_coefficients.json`: Stacking meta-learner coefficients / 堆叠元学习器系数
+- `decorrelation_info.json`: Decorrelation analysis results / 去相关分析结果
 
-## Development
+## Advanced Features / 高级功能
+
+### Decorrelation / 去相关
+Removes redundant models using hierarchical clustering on Spearman correlation matrix.  
+使用层次聚类在Spearman相关性矩阵上移除冗余模型。
+
+### Stacking / 堆叠
+Uses meta-learners (LogisticRegression/Ridge) to combine base model predictions.  
+使用元学习器（逻辑回归/岭回归）组合基础模型预测。
+
+### Weight Optimization / 权重优化
+Optimizes ensemble weights using parallel random restarts and coordinate descent.  
+使用并行随机重启和坐标下降优化集成权重。
+
+## Development / 开发
 
 ```bash
-# Install in development mode
+# Install in development mode / 开发模式安装
 pip install -e .
 
-# Run tests
+# Run tests / 运行测试
 pytest -q
 
-# Run example
-crediblend run --oof_dir examples --sub_dir examples --out runs/demo
+# Run example / 运行示例
+crediblend --oof_dir examples --sub_dir examples --out runs/demo
+
+# Run advanced example / 运行高级示例
+crediblend --oof_dir examples --sub_dir examples --out runs/v02 \
+  --decorrelate on --stacking lr --search iters=200,restarts=8
 ```
 
-## License
+## License / 许可证
 
 MIT
