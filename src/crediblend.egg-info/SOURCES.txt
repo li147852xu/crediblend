@@ -1,6 +1,7 @@
 README.md
 pyproject.toml
 src/crediblend/__init__.py
+src/crediblend/api.py
 src/crediblend/cli.py
 src/crediblend.egg-info/PKG-INFO
 src/crediblend.egg-info/SOURCES.txt
@@ -13,10 +14,16 @@ src/crediblend/core/blend.py
 src/crediblend/core/decorrelate.py
 src/crediblend/core/io.py
 src/crediblend/core/metrics.py
+src/crediblend/core/performance.py
 src/crediblend/core/plots.py
 src/crediblend/core/report.py
+src/crediblend/core/stability.py
 src/crediblend/core/stacking.py
 src/crediblend/core/weights.py
+tests/test_api.py
+tests/test_contracts.py
+tests/test_io_schema.py
 tests/test_smoke.py
+tests/test_stability.py
 tests/test_stacking.py
 tests/test_weights.py

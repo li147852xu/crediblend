@@ -1,8 +1,21 @@
 Metadata-Version: 2.4
 Name: crediblend
-Version: 0.1.0
-Summary: A minimal CLI tool for blending machine learning predictions
-Requires-Python: >=3.8
+Version: 1.0.0
+Summary: Fast, reproducible ensembling toolkit for tabular ML
+Author-email: CrediBlend Team <crediblend@example.com>
+License-Expression: MIT
+Keywords: machine-learning,ensemble,blending,tabular,ml
+Classifier: Development Status :: 5 - Production/Stable
+Classifier: Intended Audience :: Developers
+Classifier: Intended Audience :: Science/Research
+Classifier: Operating System :: OS Independent
+Classifier: Programming Language :: Python :: 3
+Classifier: Programming Language :: Python :: 3.10
+Classifier: Programming Language :: Python :: 3.11
+Classifier: Programming Language :: Python :: 3.12
+Classifier: Topic :: Scientific/Engineering :: Artificial Intelligence
+Classifier: Topic :: Software Development :: Libraries :: Python Modules
+Requires-Python: >=3.10
 Description-Content-Type: text/markdown
 Requires-Dist: pandas>=1.3.0
 Requires-Dist: numpy>=1.21.0
@@ -12,121 +25,279 @@ Requires-Dist: click>=8.0.0
 Requires-Dist: scipy>=1.7.0
 Requires-Dist: matplotlib>=3.5.0
 Requires-Dist: seaborn>=0.11.0
+Requires-Dist: pydantic>=2.0.0
+Requires-Dist: joblib>=1.2.0
+Requires-Dist: psutil>=5.8.0
+Provides-Extra: pdf
+Requires-Dist: weasyprint>=60.0; extra == "pdf"
+Provides-Extra: perf
+Requires-Dist: numba>=0.56.0; extra == "perf"
 Provides-Extra: dev
 Requires-Dist: pytest>=6.0.0; extra == "dev"
 Requires-Dist: pytest-cov>=2.0.0; extra == "dev"
+Requires-Dist: mypy>=0.950; extra == "dev"
+Requires-Dist: flake8>=4.0.0; extra == "dev"
+Requires-Dist: black>=22.0.0; extra == "dev"
+Requires-Dist: isort>=5.0.0; extra == "dev"
+Provides-Extra: all
+Requires-Dist: weasyprint>=60.0; extra == "all"
+Requires-Dist: numba>=0.56.0; extra == "all"
 
 # CrediBlend / 可信混合
 
-A minimal CLI tool for blending machine learning predictions.  
-一个用于混合机器学习预测的最小化CLI工具。
+> Fast, reproducible ensembling toolkit for tabular ML | 表格机器学习的快速可重现集成工具包
 
-## Features / 功能特性
+[![PyPI version](https://img.shields.io/pypi/v/crediblend.svg)](https://pypi.org/project/crediblend/)
+[![Python 3.10+](https://img.shields.io/pypi/pyversions/crediblend.svg)](https://pypi.org/project/crediblend/)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![CI Status](https://github.com/li147852xu/crediblend/workflows/CI/badge.svg)](https://github.com/li147852xu/crediblend/actions)
+[![Coverage](https://codecov.io/gh/li147852xu/crediblend/branch/main/graph/badge.svg)](https://codecov.io/gh/li147852xu/crediblend)
 
-### v0.1 - Basic Blending / 基础混合
-- **Multiple Blending Methods / 多种混合方法**: Mean, rank-based mean, and logit-space mean blending
-- **OOF Evaluation / OOF评估**: Out-of-fold metrics with per-fold analysis
-- **Flexible Metrics / 灵活指标**: Support for AUC, MSE, and MAE
-- **HTML Reports / HTML报告**: Beautiful, comprehensive reports with Jinja2 templates
-- **ID Alignment / ID对齐**: Automatic alignment of submission files by ID
+**Professional Ensemble Blending with Advanced Diagnostics | 具有高级诊断的专业集成混合**
 
-### v0.2 - Advanced Ensemble / 高级集成
-- **Decorrelation / 去相关**: Hierarchical clustering to remove redundant models
-- **Stacking / 堆叠**: LogisticRegression and Ridge meta-learners
-- **Weight Optimization / 权重优化**: Parallel random restarts with coordinate descent
-- **Visualizations / 可视化**: Correlation heatmaps, weight plots, and performance charts
-- **Bilingual Reports / 双语报告**: Chinese-English interface and documentation
+Detects correlation, optimizes weights, and searches robust blends with time-sliced stability analysis.  
+检测相关性、优化权重，并通过时间切片稳定性分析搜索鲁棒混合。
 
-## Installation / 安装
+## 🚀 Quick Start / 快速开始
 
 ```bash
-pip install -e .
+# Install from PyPI / 从PyPI安装
+pip install crediblend
+
+# Basic usage / 基础用法
+crediblend --oof_dir data/oof --sub_dir data/sub --out results
+
+# Advanced features / 高级功能
+crediblend --oof_dir data/oof --sub_dir data/sub --out results \
+  --decorrelate on --stacking lr --search iters=200,restarts=16 --seed 42
 ```
 
-## Usage / 使用方法
+## 📦 Installation / 安装
 
-### Basic Usage / 基础用法
 ```bash
-crediblend --oof_dir examples --sub_dir examples --out runs/demo
+# Standard installation / 标准安装
+pip install crediblend
+
+# With PDF export support / 带PDF导出支持
+pip install "crediblend[pdf]"
+
+# With performance optimizations / 带性能优化
+pip install "crediblend[perf]"
+
+# With all features / 所有功能
+pip install "crediblend[pdf,perf]"
 ```
 
-### Advanced Usage / 高级用法
+## ✅ Automatic Dependency Detection / 自动依赖检测
+
+When you install via `pip install crediblend`, pip automatically:  
+当您通过`pip install crediblend`安装时，pip会自动：
+
+• Installs all required dependencies (pandas, numpy, scikit-learn, jinja2, etc.)  
+• 安装所有必需依赖（pandas、numpy、scikit-learn、jinja2等）
+
+• Resolves version conflicts  
+• 解决版本冲突
+
+• Creates proper dependency tree  
+• 创建正确的依赖树
+
+• No manual dependency management needed!  
+• 无需手动依赖管理！
+
+## 🎯 Core Features / 核心功能
+
+### Blending Methods / 混合方法
+• **Mean Blending**: Simple arithmetic mean of predictions  
+• **均值混合**：预测的简单算术平均
+
+• **Rank-based Blending**: Mean of rank-transformed predictions  
+• **基于排名的混合**：排名转换预测的均值
+
+• **Weight Optimization**: Parallel search for optimal ensemble weights  
+• **权重优化**：并行搜索最优集成权重
+
+• **Stacking**: Meta-learning with LogisticRegression/Ridge  
+• **堆叠**：使用逻辑回归/岭回归的元学习
+
+### Advanced Diagnostics / 高级诊断
+• **Correlation Analysis**: Spearman correlation matrix and hierarchical clustering  
+• **相关性分析**：Spearman相关性矩阵和层次聚类
+
+• **Time-sliced Evaluation**: Per-window AUC analysis for temporal stability  
+• **时间切片评估**：用于时间稳定性的每窗口AUC分析
+
+• **Stability Scoring**: Standard deviation and IQR of windowed metrics  
+• **稳定性评分**：窗口化指标的标准差和四分位距
+
+• **Leakage Detection**: Flag models with suspiciously high performance  
+• **泄露检测**：标记性能异常高的模型
+
+### Performance & Production / 性能与生产
+• **Parallel Processing**: Multi-core optimization with joblib  
+• **并行处理**：使用joblib的多核优化
+
+• **Memory Optimization**: Automatic dtype optimization and chunked reading  
+• **内存优化**：自动数据类型优化和分块读取
+
+• **Auto Strategy**: Intelligent strategy selection based on data characteristics  
+• **自动策略**：基于数据特征的智能策略选择
+
+• **Docker Support**: Production-ready containerization  
+• **Docker支持**：生产就绪的容器化
+
+• **CI/CD Integration**: Meaningful exit codes and stable contracts  
+• **CI/CD集成**：有意义的退出代码和稳定合约
+
+## 📊 Usage Examples / 使用示例
+
+### Command Line Interface / 命令行界面
+
 ```bash
-crediblend --oof_dir examples --sub_dir examples --out runs/v02 \
-  --decorrelate on --stacking lr --search iters=200,restarts=8 --seed 42
+# Performance optimized / 性能优化
+crediblend --oof_dir data/oof --sub_dir data/sub --out results \
+  --n-jobs 8 --memory-cap 4096 --strategy auto --seed 42
+
+# Time-sliced analysis / 时间切片分析
+crediblend --oof_dir data/oof --sub_dir data/sub --out results \
+  --time-col date --freq M --decorrelate on
+
+# PDF export with summary / PDF导出与摘要
+crediblend --oof_dir data/oof --sub_dir data/sub --out results \
+  --export pdf --summary-json results/blend_summary.json --seed 123
 ```
 
-### Options / 选项
+### Python API / Python API
 
-- `--oof_dir`: Directory containing OOF CSV files (format: `oof_*.csv`) / OOF CSV文件目录
-- `--sub_dir`: Directory containing submission CSV files (format: `sub_*.csv`) / 提交文件目录
-- `--out`: Output directory for results / 输出结果目录
-- `--metric`: Metric to use for evaluation (`auc`, `mse`, `mae`) [default: `auc`] / 评估指标
-- `--target_col`: Name of target column in OOF files [default: `target`] / 目标列名称
-- `--methods`: Comma-separated list of blending methods / 混合方法列表
-- `--decorrelate`: Enable decorrelation via clustering (`on`/`off`) [default: `off`] / 启用去相关
-- `--stacking`: Enable stacking with meta-learner (`lr`/`ridge`/`none`) [default: `none`] / 启用堆叠
-- `--search`: Weight search parameters (`iters=N,restarts=M`) / 权重搜索参数
-- `--seed`: Random seed for reproducibility / 随机种子
+```python
+from crediblend.api import fit_blend, predict_blend, quick_blend
+import pandas as pd
 
-## File Formats / 文件格式
+# Load your data / 加载数据
+oof_data = [pd.read_csv('oof_model1.csv'), pd.read_csv('oof_model2.csv')]
+sub_data = [pd.read_csv('sub_model1.csv'), pd.read_csv('sub_model2.csv')]
+
+# Quick blending / 快速混合
+result = quick_blend(oof_data, sub_data, method='mean')
+print(result.predictions)
+
+# Advanced blending with configuration / 高级混合配置
+from crediblend.api import BlendConfig
+config = BlendConfig(method='weighted', metric='auc', random_state=42)
+model = fit_blend(oof_data, config=config)
+result = predict_blend(model, sub_data)
+```
+
+### Docker Usage / Docker使用
+
+```bash
+# Build and run / 构建并运行
+docker build -t crediblend .
+docker run -v $(pwd)/data:/data -v $(pwd)/results:/results \
+  crediblend --oof_dir /data/oof --sub_dir /data/sub --out /results
+```
+
+## 📁 File Formats / 文件格式
 
 ### OOF Files (`oof_*.csv`) / OOF文件
+**Required columns / 必需列**: `id`, `pred`  
+**Optional columns / 可选列**: `target`, `fold`, `{time_col}`
+
 ```csv
 id,pred,target,fold
-1,0.65,1,0
-2,0.32,0,0
-...
+1,0.1,0,0
+2,0.2,1,0
+3,0.3,0,1
 ```
 
 ### Submission Files (`sub_*.csv`) / 提交文件
+**Required columns / 必需列**: `id`, `pred`
+
 ```csv
 id,pred
-1,0.68
-2,0.29
-...
+1,0.15
+2,0.25
+3,0.35
 ```
 
-## Output Files / 输出文件
+## ⚙️ Configuration Options / 配置选项
 
-- `best_submission.csv`: Best blended predictions / 最佳混合预测
-- `methods.csv`: Model performance comparison table / 模型性能对比表
-- `report.html`: Comprehensive HTML report / 综合HTML报告
-- `weights.json`: Optimized ensemble weights / 优化集成权重
-- `stacking_coefficients.json`: Stacking meta-learner coefficients / 堆叠元学习器系数
-- `decorrelation_info.json`: Decorrelation analysis results / 去相关分析结果
+### Key CLI Flags / 关键CLI标志
+• `--oof_dir`: Directory containing OOF CSV files / 包含OOF CSV文件的目录
+• `--sub_dir`: Directory containing submission CSV files / 包含提交CSV文件的目录
+• `--out`: Output directory for results / 结果输出目录
+• `--metric`: Evaluation metric (`auc`, `mse`, `mae`) [default: `auc`] / 评估指标
+• `--decorrelate`: Enable decorrelation (`on`/`off`) [default: `off`] / 启用去相关
+• `--stacking`: Enable stacking (`lr`/`ridge`/`none`) [default: `none`] / 启用堆叠
+• `--search`: Weight search parameters (`iters=N,restarts=M`) / 权重搜索参数
+• `--strategy`: Blending strategy (`auto`/`mean`/`weighted`/`decorrelate_weighted`) [default: `mean`] / 混合策略
+• `--n-jobs`: Number of parallel jobs (-1 for all CPUs) [default: -1] / 并行作业数
+• `--memory-cap`: Memory cap in MB [default: 4096] / 内存限制（MB）
 
-## Advanced Features / 高级功能
+### Exit Codes / 退出代码
+• `0`: Success - Improvement detected / 成功 - 检测到改进
+• `2`: Success with warnings - Unstable or redundant models detected / 成功但警告 - 检测到不稳定或冗余模型
+• `3`: No improvement - Ensemble not better than best single model / 无改进 - 集成不比最佳单模型好
+• `4`: Invalid input or configuration / 无效输入或配置
 
-### Decorrelation / 去相关
-Removes redundant models using hierarchical clustering on Spearman correlation matrix.  
-使用层次聚类在Spearman相关性矩阵上移除冗余模型。
+## 📈 Performance Benchmarks / 性能基准
 
-### Stacking / 堆叠
-Uses meta-learners (LogisticRegression/Ridge) to combine base model predictions.  
-使用元学习器（逻辑回归/岭回归）组合基础模型预测。
+• **200k rows × 8 models**: Completes in 1-5 minutes / 20万行×8个模型：1-5分钟内完成
+• **Memory usage**: Configurable cap, default 4GB / 内存使用：可配置上限，默认4GB
+• **Parallel processing**: Multi-core optimization support / 并行处理：多核优化支持
+• **Data type optimization**: 50%+ memory reduction / 数据类型优化：50%+内存减少
 
-### Weight Optimization / 权重优化
-Optimizes ensemble weights using parallel random restarts and coordinate descent.  
-使用并行随机重启和坐标下降优化集成权重。
-
-## Development / 开发
+## 🧪 Testing / 测试
 
 ```bash
-# Install in development mode / 开发模式安装
-pip install -e .
+# Run all tests / 运行所有测试
+pytest tests/ -v
 
-# Run tests / 运行测试
-pytest -q
+# Run specific test categories / 运行特定测试类别
+pytest tests/test_api.py -v          # API tests / API测试
+pytest tests/test_contracts.py -v    # Contract stability tests / 合约稳定性测试
+pytest tests/perf/ -v                # Performance tests (slow) / 性能测试（慢）
 
-# Run example / 运行示例
-crediblend --oof_dir examples --sub_dir examples --out runs/demo
-
-# Run advanced example / 运行高级示例
-crediblend --oof_dir examples --sub_dir examples --out runs/v02 \
-  --decorrelate on --stacking lr --search iters=200,restarts=8
+# Run with coverage / 运行覆盖率测试
+pytest tests/ --cov=src/crediblend --cov-report=html
 ```
 
-## License / 许可证
+## 🔧 Development / 开发
 
-MIT
+```bash
+# Install from source / 从源码安装
+git clone https://github.com/li147852xu/crediblend.git
+cd crediblend
+pip install -e .
+
+# With development dependencies / 安装开发依赖
+pip install -e .[dev]
+```
+
+## 🤝 Contributing / 贡献
+
+1. Fork the repository / Fork仓库
+2. Create a feature branch (`git checkout -b feature/amazing-feature`) / 创建功能分支
+3. Commit your changes (`git commit -m 'Add amazing feature'`) / 提交更改
+4. Push to the branch (`git push origin feature/amazing-feature`) / 推送到分支
+5. Open a Pull Request / 打开Pull Request
+
+## 📄 License / 许可证
+
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.  
+本项目采用MIT许可证 - 详见[LICENSE](LICENSE)文件。
+
+## 📞 Support / 支持
+
+• **Issues**: [GitHub Issues](https://github.com/li147852xu/crediblend/issues) / 问题反馈
+• **Discussions**: [GitHub Discussions](https://github.com/li147852xu/crediblend/discussions) / 讨论
+• **Documentation**: [GitHub Wiki](https://github.com/li147852xu/crediblend/wiki) / 文档
+
+---
+
+<div align="center">
+
+**CrediBlend** - Making ensemble learning fast, reliable, and production-ready 🚀  
+**CrediBlend** - 让集成学习快速、可靠、生产就绪 🚀
+
+</div>
