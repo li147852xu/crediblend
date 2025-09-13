@@ -39,12 +39,20 @@ jobs:
         TWINE_PASSWORD: ${{ secrets.TEST_PYPI_API_TOKEN }}
         TWINE_REPOSITORY: testpypi
       run: |
-        twine upload dist/*
+        if [ -n "$TWINE_PASSWORD" ]; then
+          twine upload dist/*
+        else
+          echo "⚠️  TEST_PYPI_API_TOKEN not set, skipping TestPyPI upload"
+        fi
     
     - name: Test installation from TestPyPI
       run: |
-        pip install --index-url https://test.pypi.org/simple/ crediblend
-        python -c "import crediblend; print('✅ TestPyPI installation successful')"
+        if [ -n "$TWINE_PASSWORD" ]; then
+          pip install --index-url https://test.pypi.org/simple/ crediblend
+          python -c "import crediblend; print('✅ TestPyPI installation successful')"
+        else
+          echo "⚠️  Skipping TestPyPI installation test (no token)"
+        fi
 
   pypi:
     runs-on: ubuntu-latest
@@ -77,12 +85,20 @@ jobs:
         TWINE_USERNAME: __token__
         TWINE_PASSWORD: ${{ secrets.PYPI_API_TOKEN }}
       run: |
-        twine upload dist/*
+        if [ -n "$TWINE_PASSWORD" ]; then
+          twine upload dist/*
+        else
+          echo "⚠️  PYPI_API_TOKEN not set, skipping PyPI upload"
+        fi
     
     - name: Test installation from PyPI
       run: |
-        pip install crediblend
-        python -c "import crediblend; print('✅ PyPI installation successful')"
+        if [ -n "$TWINE_PASSWORD" ]; then
+          pip install crediblend
+          python -c "import crediblend; print('✅ PyPI installation successful')"
+        else
+          echo "⚠️  Skipping PyPI installation test (no token)"
+        fi
     
     - name: Create GitHub Release
       uses: actions/create-release@v1
